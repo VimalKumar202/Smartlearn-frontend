@@ -1,22 +1,32 @@
-import { API_BASE } from "./config.js";
+// ===============================
+// APP CONFIG
+// ===============================
+const API_BASE = window.APP_CONFIG.API_BASE;   // example: https://smartlearn-backend.onrender.com/api
+const BASE_URL = window.APP_CONFIG.BASE_URL;   // example: https://smartlearn-backend.onrender.com
 
-// Example: API_BASE = https://smartlearn-backend-3.onrender.com/api
-const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
-const SL_TOKEN = localStorage.getItem("sl_token");
+const token = localStorage.getItem("sl_token");
+const ANNOUNCE_API = `${API_BASE}/announcements`;
+const FILE_BASE = BASE_URL;
 
+// ===============================
+// HELPERS
+// ===============================
+function buildFileUrl(path = "") {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+// ===============================
+// AUTH + HEADER + NAV
+// ===============================
 document.addEventListener("DOMContentLoaded", () => {
-  // ===============================
-  // 🔐 AUTH TOKEN CHECK
-  // ===============================
-  if (!SL_TOKEN) {
+  if (!token) {
     alert("Session expired. Please login again.");
     window.location.replace("index.html");
     return;
   }
 
-  // ===============================
-  // LOAD TEACHER HEADER
-  // ===============================
   function loadTeacherHeader() {
     const username = localStorage.getItem("sl_username");
     const role = localStorage.getItem("sl_role");
@@ -27,7 +37,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (topName) {
       topName.textContent =
-        role === "teacher" ? `Teacher ${username || ""}` : username || "Teacher";
+        role === "teacher"
+          ? `Teacher ${username || ""}`
+          : username || "Teacher";
     }
 
     if (topAvatar) {
@@ -45,9 +57,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   loadTeacherHeader();
 
-  // ===============================
-  // NAVIGATION
-  // ===============================
   const navButtons = document.querySelectorAll(".nav-item");
   const sections = document.querySelectorAll(".section");
 
@@ -55,25 +64,25 @@ document.addEventListener("DOMContentLoaded", () => {
     navButtons.forEach((btn) =>
       btn.classList.toggle("active", btn.dataset.section === id)
     );
-    sections.forEach((sec) => (sec.style.display = sec.id === id ? "" : "none"));
+    sections.forEach((sec) => {
+      sec.style.display = sec.id === id ? "" : "none";
+    });
   }
 
   navButtons.forEach((btn) =>
     btn.addEventListener("click", () => showSection(btn.dataset.section))
   );
+
   showSection("home");
 
-  // ===============================
-  // LOGOUT
-  // ===============================
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     localStorage.clear();
     window.location.replace("index.html");
   });
-}); // DOM END
+});
 
 // ===================================================
-// 🤖 AI PANEL
+// AI PANEL
 // ===================================================
 const askAiBtn = document.getElementById("askAiBtn");
 const askAiPanel = document.getElementById("askAiPanel");
@@ -82,22 +91,21 @@ const aiInput = document.getElementById("aiInput");
 const aiSend = document.getElementById("aiSend");
 const aiChatBox = document.getElementById("aiChatBox");
 
-// OPEN PANEL
 askAiBtn?.addEventListener("click", () => {
   askAiPanel.classList.add("open");
   askAiPanel.setAttribute("aria-hidden", "false");
 });
 
-// CLOSE PANEL
 closeAskAi?.addEventListener("click", () => {
   askAiPanel.classList.remove("open");
   askAiPanel.setAttribute("aria-hidden", "true");
 
-  aiChatBox.innerHTML = `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+  aiChatBox.innerHTML =
+    `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+
   aiInput.value = "";
 });
 
-// ADD MESSAGE
 function addMessage(sender, text) {
   const div = document.createElement("div");
   div.className = `msg ${sender}`;
@@ -105,9 +113,10 @@ function addMessage(sender, text) {
   if (sender === "user") {
     div.textContent = `You: ${text}`;
   } else {
-    const formattedText = String(text)
+    const formattedText = text
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\n/g, "<br>");
+
     div.innerHTML = `🤖 ${formattedText}`;
   }
 
@@ -115,7 +124,6 @@ function addMessage(sender, text) {
   aiChatBox.scrollTop = aiChatBox.scrollHeight;
 }
 
-// CALL BACKEND (AI)
 async function callSmartLearn(prompt) {
   try {
     const res = await fetch(`${API_BASE}/ai/ask`, {
@@ -123,14 +131,14 @@ async function callSmartLearn(prompt) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prompt }),
     });
-    const data = await res.json().catch(() => ({}));
+
+    const data = await res.json();
     return data.reply || "No response";
   } catch {
     return "❌ AI Server Error";
   }
 }
 
-// SEND
 aiSend?.addEventListener("click", async () => {
   const text = aiInput.value.trim();
   if (!text) return;
@@ -145,29 +153,30 @@ aiSend?.addEventListener("click", async () => {
   addMessage("ai", reply);
 });
 
-// ENTER KEY
 aiInput?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") aiSend.click();
 });
 
 // ===================================================
-// 👩‍🎓 LOAD STUDENTS
+// LOAD STUDENTS
 // ===================================================
 async function loadStudents() {
   try {
     const res = await fetch(`${API_BASE}/teacher/students`, {
-      headers: { Authorization: "Bearer " + SL_TOKEN },
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("sl_token"),
+      },
     });
 
     if (!res.ok) throw new Error("Failed to load students");
 
-    const students = await res.json().catch(() => []);
+    const students = await res.json();
     const list = document.getElementById("studentList");
     if (!list) return;
 
     list.innerHTML = "";
 
-    if (!Array.isArray(students) || !students.length) {
+    if (!students.length) {
       list.innerHTML = "<li>No students found</li>";
       return;
     }
@@ -182,41 +191,44 @@ async function loadStudents() {
     console.error("Student load error:", err);
   }
 }
+
 loadStudents();
 
 // ===================================================
-// 📊 STUDENT DETAILS + PERFORMANCE
+// STUDENT DETAILS + PERFORMANCE
 // ===================================================
 async function loadStudentDetails(id) {
   const details = document.getElementById("studentDetails");
-  details?.classList.add("show");
+  if (details) details.classList.add("show");
 
-  const headers = { Authorization: "Bearer " + SL_TOKEN };
+  const headers = {
+    Authorization: "Bearer " + localStorage.getItem("sl_token"),
+  };
 
   try {
-    // PROFILE
     const profileRes = await fetch(`${API_BASE}/teacher/student/${id}`, {
       headers,
     });
 
     if (!profileRes.ok) throw new Error("Profile fetch failed");
 
-    const profile = await profileRes.json().catch(() => ({}));
+    const profile = await profileRes.json();
 
     document.getElementById("studentNameTitle").textContent =
       profile.username || "N/A";
-    document.getElementById("studentEmail").textContent = profile.email || "N/A";
+    document.getElementById("studentEmail").textContent =
+      profile.email || "N/A";
 
-    // PERFORMANCE
-    const perfRes = await fetch(
-      `${API_BASE}/teacher/student/${id}/performance`,
-      { headers }
-    );
-    const perf = perfRes.ok ? await perfRes.json().catch(() => ({})) : {};
+    const perfRes = await fetch(`${API_BASE}/teacher/student/${id}/performance`, {
+      headers,
+    });
+
+    const perf = perfRes.ok ? await perfRes.json() : {};
 
     const weakList = document.getElementById("studentWeakTopics");
     if (weakList) {
       weakList.innerHTML = "";
+
       if (perf.weakTopics?.length) {
         perf.weakTopics.forEach((t) => {
           const li = document.createElement("li");
@@ -239,12 +251,13 @@ document.getElementById("closeStudentDetails")?.addEventListener("click", () => 
 });
 
 // ===================================================
-// 📈 CHART
+// CHART
 // ===================================================
 let chart;
+
 function loadStudentChart(subjects) {
   const ctx = document.getElementById("studentChart");
-  if (!ctx || typeof Chart === "undefined") return;
+  if (!ctx) return;
 
   if (chart) chart.destroy();
   if (!subjects.length) return;
@@ -268,7 +281,7 @@ function loadStudentChart(subjects) {
 }
 
 // ===================================================
-// 🎥 UPLOAD VIDEO
+// UPLOAD VIDEO
 // ===================================================
 const videoTitle = document.getElementById("videoTitle");
 const youtubeUrl = document.getElementById("youtubeUrl");
@@ -294,13 +307,13 @@ uploadVideoBtn?.addEventListener("click", async () => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + SL_TOKEN,
+        Authorization: "Bearer " + localStorage.getItem("sl_token"),
       },
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || "Upload failed");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
 
     alert("✅ Video uploaded successfully");
 
@@ -316,19 +329,23 @@ uploadVideoBtn?.addEventListener("click", async () => {
 });
 
 // ===================================================
-// 🎥 LOAD MY UPLOADED VIDEOS (SINGLE VERSION ONLY)
+// LOAD MY VIDEOS
 // ===================================================
 let allMyVideos = [];
 
 async function loadMyVideos() {
   try {
+    const token = localStorage.getItem("sl_token");
+
     const res = await fetch(`${API_BASE}/teacher/videos/my-videos`, {
-      headers: { Authorization: "Bearer " + SL_TOKEN },
+      headers: {
+        Authorization: "Bearer " + token,
+      },
     });
 
     if (!res.ok) throw new Error("Failed to load videos");
 
-    allMyVideos = await res.json().catch(() => []);
+    allMyVideos = await res.json();
     renderMyVideos(allMyVideos);
     populateSubjectFilter(allMyVideos);
   } catch (err) {
@@ -352,13 +369,17 @@ function renderMyVideos(videos) {
 
     container.innerHTML += `
       <div class="video-card">
-        <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+        <iframe
+          src="https://www.youtube.com/embed/${videoId}"
+          allowfullscreen>
+        </iframe>
 
         <h4><b>Title:</b> ${video.title}</h4>
         <p><b>Subject:</b> ${video.subject || "-"}</p>
         <p><b>Description:</b> ${video.description || ""}</p>
 
-        <button class="delete-btn" onclick="deleteVideo('${video._id}')">
+        <button class="delete-btn"
+          onclick="deleteVideo('${video._id}')">
           🗑 Delete
         </button>
       </div>
@@ -368,9 +389,19 @@ function renderMyVideos(videos) {
 
 function getYouTubeId(url) {
   if (!url) return "";
-  if (url.includes("youtu.be/")) return url.split("youtu.be/")[1].split("?")[0];
-  if (url.includes("watch?v=")) return url.split("v=")[1].split("&")[0];
-  if (url.includes("/embed/")) return url.split("/embed/")[1].split("?")[0];
+
+  if (url.includes("youtu.be/")) {
+    return url.split("youtu.be/")[1].split("?")[0];
+  }
+
+  if (url.includes("watch?v=")) {
+    return url.split("v=")[1].split("&")[0];
+  }
+
+  if (url.includes("/embed/")) {
+    return url.split("/embed/")[1].split("?")[0];
+  }
+
   return "";
 }
 
@@ -380,11 +411,13 @@ async function deleteVideo(videoId) {
   try {
     const res = await fetch(`${API_BASE}/teacher/videos/${videoId}`, {
       method: "DELETE",
-      headers: { Authorization: "Bearer " + SL_TOKEN },
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("sl_token"),
+      },
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || "Delete failed");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
 
     alert("✅ Video deleted");
     loadMyVideos();
@@ -393,20 +426,33 @@ async function deleteVideo(videoId) {
   }
 }
 
-// Filters
-document.getElementById("videoSearchInput")?.addEventListener("input", applyFilters);
-document.getElementById("subjectFilter")?.addEventListener("change", applyFilters);
+loadMyVideos();
+
+// ===================================================
+// VIDEO SEARCH + FILTER
+// ===================================================
+document.getElementById("videoSearchInput")?.addEventListener("input", () => {
+  applyFilters();
+});
+
+document.getElementById("subjectFilter")?.addEventListener("change", () => {
+  applyFilters();
+});
 
 function applyFilters() {
-  const searchText = (document.getElementById("videoSearchInput")?.value || "").toLowerCase();
+  const searchText = document
+    .getElementById("videoSearchInput")
+    ?.value.toLowerCase() || "";
+
   const subject = document.getElementById("subjectFilter")?.value || "";
 
   const filtered = allMyVideos.filter((video) => {
     const matchesSearch =
-      (video.title || "").toLowerCase().includes(searchText) ||
+      video.title.toLowerCase().includes(searchText) ||
       (video.description || "").toLowerCase().includes(searchText);
 
     const matchesSubject = !subject || video.subject === subject;
+
     return matchesSearch && matchesSubject;
   });
 
@@ -418,6 +464,7 @@ function populateSubjectFilter(videos) {
   if (!subjectFilter) return;
 
   subjectFilter.innerHTML = `<option value="">All Subjects</option>`;
+
   const subjects = [...new Set(videos.map((v) => v.subject).filter(Boolean))];
 
   subjects.forEach((sub) => {
@@ -428,144 +475,31 @@ function populateSubjectFilter(videos) {
   });
 }
 
-loadMyVideos();
-
 // ===================================================
-// 📢 ANNOUNCEMENTS (TEACHER)
+// DOUBTS
 // ===================================================
-const announcementText = document.getElementById("announcementText");
-const announcementFile = document.getElementById("announcementFile");
-const fileName = document.getElementById("fileName");
-const postBtn = document.getElementById("postAnnouncementBtn");
+async function replyDoubt(doubtId, answer) {
+  await fetch(`${API_BASE}/doubts/${doubtId}/reply`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + localStorage.getItem("sl_token"),
+    },
+    body: JSON.stringify({ answer }),
+  });
 
-const ANNOUNCE_API = `${API_BASE}/announcements`;
-
-// Show selected file name
-announcementFile?.addEventListener("change", () => {
-  fileName.textContent = announcementFile.files[0]?.name || "No file selected";
-});
-
-// Post Announcement
-postBtn?.addEventListener("click", async () => {
-  if (!announcementText.value.trim()) {
-    alert("❌ Announcement message is required");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("message", announcementText.value);
-
-  if (announcementFile.files[0]) {
-    formData.append("attachment", announcementFile.files[0]);
-  }
-
-  try {
-    const res = await fetch(ANNOUNCE_API, {
-      method: "POST",
-      headers: { Authorization: "Bearer " + SL_TOKEN },
-      body: formData,
-    });
-
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      alert(data.message || "Failed to post announcement");
-      return;
-    }
-
-    alert("✅ Announcement posted");
-
-    announcementText.value = "";
-    announcementFile.value = "";
-    fileName.textContent = "No file selected";
-
-    loadMyAnnouncements();
-  } catch (err) {
-    console.error("Announcement error:", err);
-    alert("❌ Server error");
-  }
-});
-
-// LOAD MY ANNOUNCEMENTS
-const myAnnouncementsBox = document.getElementById("myAnnouncements");
-
-async function loadMyAnnouncements() {
-  try {
-    const res = await fetch(ANNOUNCE_API, {
-      headers: { Authorization: "Bearer " + SL_TOKEN },
-    });
-
-    const announcements = await res.json().catch(() => []);
-
-    if (!myAnnouncementsBox) return;
-
-    if (!announcements.length) {
-      myAnnouncementsBox.innerHTML = "<p class='muted'>No announcements posted yet.</p>";
-      return;
-    }
-
-    myAnnouncementsBox.innerHTML = "";
-
-    announcements.forEach((a) => {
-      const div = document.createElement("div");
-      div.className = "announcement-item";
-
-      const attachmentUrl = a.attachment ? `${API_ORIGIN}${a.attachment}` : "";
-
-      div.innerHTML = `
-        <div class="announcement-top">
-          <p>${a.message}</p>
-          <button class="delete-btn" data-id="${a._id}">🗑</button>
-        </div>
-
-        ${a.attachment ? `<a href="${attachmentUrl}" target="_blank" rel="noopener">📎 View Attachment</a>` : ""}
-
-        <small class="muted">
-          Expires on ${a.expiresAt ? new Date(a.expiresAt).toLocaleDateString() : "-"}
-        </small>
-      `;
-
-      myAnnouncementsBox.appendChild(div);
-    });
-  } catch (err) {
-    console.error("Load announcements error:", err);
-    if (myAnnouncementsBox) myAnnouncementsBox.innerHTML = "<p class='error'>Failed to load announcements</p>";
-  }
+  loadAllDoubts?.();
 }
 
-loadMyAnnouncements();
-
-// Delete announcement
-myAnnouncementsBox?.addEventListener("click", async (e) => {
-  if (!e.target.classList.contains("delete-btn")) return;
-
-  const id = e.target.dataset.id;
-  if (!confirm("Delete this announcement?")) return;
-
-  const res = await fetch(`${ANNOUNCE_API}/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: "Bearer " + SL_TOKEN },
-  });
-
-  const data = await res.json().catch(() => ({}));
-
-  if (!res.ok) {
-    alert(data.message || "Delete failed");
-    return;
-  }
-
-  loadMyAnnouncements();
-});
-
-// ===================================================
-// ✅ DOUBTS (TEACHER PENDING + REPLY)
-// ===================================================
 async function loadTeacherDoubts() {
   const res = await fetch(`${API_BASE}/doubts/teacher/pending`, {
-    headers: { Authorization: "Bearer " + SL_TOKEN },
+    headers: {
+      Authorization: "Bearer " + localStorage.getItem("sl_token"),
+    },
   });
 
-  const doubts = await res.json().catch(() => []);
+  const doubts = await res.json();
+
   const container = document.getElementById("teacherDoubts");
   if (!container) return;
 
@@ -582,7 +516,9 @@ async function loadTeacherDoubts() {
         <div class="doubt-header">
           <div>
             <strong>👨‍🎓 ${d.student.username}</strong>
-            <span class="time">${new Date(d.createdAt).toLocaleString()}</span>
+            <span class="time">
+              ${new Date(d.createdAt).toLocaleString()}
+            </span>
           </div>
           <span class="badge pending">Pending</span>
         </div>
@@ -602,17 +538,19 @@ async function loadTeacherDoubts() {
     `;
   });
 }
+
 loadTeacherDoubts();
 
 async function sendReply(id) {
   const answer = document.getElementById(`reply-${id}`).value;
+
   if (!answer) return alert("Write reply");
 
   await fetch(`${API_BASE}/doubts/${id}/reply`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + SL_TOKEN,
+      Authorization: "Bearer " + localStorage.getItem("sl_token"),
     },
     body: JSON.stringify({ answer }),
   });
@@ -621,10 +559,145 @@ async function sendReply(id) {
 }
 
 // ===================================================
-// 📤 CONTENT UPLOAD + MY CONTENT CRUD
+// ANNOUNCEMENTS
+// ===================================================
+const announcementText = document.getElementById("announcementText");
+const announcementFile = document.getElementById("announcementFile");
+const fileName = document.getElementById("fileName");
+const postBtn = document.getElementById("postAnnouncementBtn");
+const myAnnouncementsBox = document.getElementById("myAnnouncements");
+
+announcementFile?.addEventListener("change", () => {
+  fileName.textContent =
+    announcementFile.files[0]?.name || "No file selected";
+});
+
+postBtn?.addEventListener("click", async () => {
+  if (!announcementText.value.trim()) {
+    alert("❌ Announcement message is required");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("message", announcementText.value);
+
+  if (announcementFile.files[0]) {
+    formData.append("attachment", announcementFile.files[0]);
+  }
+
+  try {
+    const res = await fetch(ANNOUNCE_API, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+      },
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || "Failed to post announcement");
+      return;
+    }
+
+    alert("✅ Announcement posted");
+
+    announcementText.value = "";
+    announcementFile.value = "";
+    fileName.textContent = "No file selected";
+
+    loadMyAnnouncements();
+  } catch (err) {
+    console.error("Announcement error:", err);
+    alert("❌ Server error");
+  }
+});
+
+async function loadMyAnnouncements() {
+  try {
+    if (!myAnnouncementsBox) return;
+
+    const res = await fetch(ANNOUNCE_API, {
+      headers: {
+        Authorization: "Bearer " + token,
+      },
+    });
+
+    const announcements = await res.json();
+
+    if (!announcements.length) {
+      myAnnouncementsBox.innerHTML =
+        "<p class='muted'>No announcements posted yet.</p>";
+      return;
+    }
+
+    myAnnouncementsBox.innerHTML = "";
+
+    announcements.forEach((a) => {
+      const div = document.createElement("div");
+      div.className = "announcement-item";
+
+      const attachmentUrl = a.attachment ? buildFileUrl(a.attachment) : "";
+
+      div.innerHTML = `
+        <div class="announcement-top">
+          <p>${a.message}</p>
+          <button class="delete-btn" data-id="${a._id}">🗑</button>
+        </div>
+
+        ${
+          a.attachment
+            ? `<a href="${attachmentUrl}" target="_blank" rel="noopener">📎 View Attachment</a>`
+            : ""
+        }
+
+        <small class="muted">
+          Expires on ${new Date(a.expiresAt).toLocaleDateString()}
+        </small>
+      `;
+
+      myAnnouncementsBox.appendChild(div);
+    });
+  } catch (err) {
+    console.error("Load announcements error:", err);
+    if (myAnnouncementsBox) {
+      myAnnouncementsBox.innerHTML =
+        "<p class='error'>Failed to load announcements</p>";
+    }
+  }
+}
+
+loadMyAnnouncements();
+
+myAnnouncementsBox?.addEventListener("click", async (e) => {
+  if (!e.target.classList.contains("delete-btn")) return;
+
+  const id = e.target.dataset.id;
+
+  if (!confirm("Delete this announcement?")) return;
+
+  const res = await fetch(`${ANNOUNCE_API}/${id}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: "Bearer " + token,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || "Delete failed");
+    return;
+  }
+
+  loadMyAnnouncements();
+});
+
+// ===================================================
+// CONTENT UPLOAD
 // ===================================================
 const uploadBtn = document.getElementById("uploadBtn");
-const contentContainer = document.getElementById("myContent");
 
 uploadBtn?.addEventListener("click", async () => {
   const title = document.getElementById("uploadTitle").value;
@@ -645,13 +718,16 @@ uploadBtn?.addEventListener("click", async () => {
 
   const res = await fetch(`${API_BASE}/content/upload`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${SL_TOKEN}` },
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("sl_token")}`,
+    },
     body: formData,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
+
   if (!res.ok) {
-    alert(data.message || "Upload failed");
+    alert(data.message);
     return;
   }
 
@@ -659,13 +735,19 @@ uploadBtn?.addEventListener("click", async () => {
   loadMyContent();
 });
 
+const contentContainer = document.getElementById("myContent");
+
 async function loadMyContent() {
   try {
+    const token = localStorage.getItem("sl_token");
+
     const res = await fetch(`${API_BASE}/content/my`, {
-      headers: { Authorization: `Bearer ${SL_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
 
-    const data = await res.json().catch(() => []);
+    const data = await res.json();
     if (!contentContainer) return;
 
     contentContainer.innerHTML = "";
@@ -676,8 +758,6 @@ async function loadMyContent() {
     }
 
     data.forEach((item) => {
-      const fileLink = item.fileUrl ? `${API_ORIGIN}/${String(item.fileUrl).replace(/^\/+/, "")}` : "#";
-
       contentContainer.innerHTML += `
         <div class="content-card" id="card-${item._id}">
           <div class="view-mode">
@@ -689,7 +769,9 @@ async function loadMyContent() {
             <div class="content-actions">
               <button class="edit-btn" onclick="enableEdit('${item._id}')">✏️</button>
               <button class="delete-btn" onclick="deleteContent('${item._id}')">🗑️</button>
-              <a href="${fileLink}" target="_blank" rel="noopener">View / Download</a>
+              <a href="${buildFileUrl(item.fileUrl)}" target="_blank">
+                View / Download
+              </a>
             </div>
           </div>
 
@@ -737,18 +819,23 @@ async function updateContent(id) {
   formData.append("title", title);
   formData.append("subject", subject);
   formData.append("contentType", contentType);
-  if (file) formData.append("file", file);
+
+  if (file) {
+    formData.append("file", file);
+  }
 
   const res = await fetch(`${API_BASE}/content/${id}`, {
     method: "PUT",
-    headers: { Authorization: `Bearer ${SL_TOKEN}` },
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("sl_token")}`,
+    },
     body: formData,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
 
   if (!res.ok) {
-    alert(data.message || "Update failed");
+    alert(data.message);
     return;
   }
 
@@ -761,13 +848,15 @@ async function deleteContent(id) {
 
   const res = await fetch(`${API_BASE}/content/${id}`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${SL_TOKEN}` },
+    headers: {
+      Authorization: `Bearer ${localStorage.getItem("sl_token")}`,
+    },
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
 
   if (!res.ok) {
-    alert(data.message || "Delete failed");
+    alert(data.message);
     return;
   }
 
@@ -778,26 +867,36 @@ async function deleteContent(id) {
 loadMyContent();
 
 // ===================================================
-// 👨‍🏫 TEACHER DASHBOARD STATS
+// DASHBOARD
 // ===================================================
 async function loadTeacherDashboard() {
   try {
     const res = await fetch(`${API_BASE}/teacher/dashboard`, {
-      headers: { Authorization: `Bearer ${SL_TOKEN}` },
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("sl_token")}`,
+      },
     });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || "Dashboard fetch failed");
+    const data = await res.json();
+    console.log("Dashboard Data:", data);
 
-    document.getElementById("totalStudents").innerText = data.stats.totalStudents ?? 0;
-    document.getElementById("pendingDoubts").innerText = data.stats.pendingDoubts ?? 0;
-    document.getElementById("notesThisWeek").innerText = data.stats.notesThisWeek ?? 0;
-    document.getElementById("totalAssignments").innerText = data.stats.totalAssignments ?? 0;
+    document.getElementById("totalStudents").innerText =
+      data.stats.totalStudents;
+
+    document.getElementById("pendingDoubts").innerText =
+      data.stats.pendingDoubts;
+
+    document.getElementById("notesThisWeek").innerText =
+      data.stats.notesThisWeek;
+
+    document.getElementById("totalAssignments").innerText =
+      data.stats.totalAssignments;
 
     const doubtsContainer = document.querySelector("#home .card");
     if (doubtsContainer) {
       doubtsContainer.innerHTML = `<h3>❓ Latest Student Pending Doubts</h3>`;
-      (data.latestDoubts || []).forEach((doubt) => {
+
+      data.latestDoubts.forEach((doubt) => {
         doubtsContainer.innerHTML += `
           <div class="doubt-card">
             <div>

@@ -1,6 +1,6 @@
-import { API_BASE } from "./config.js";
-
 document.getElementById("resetBtn").addEventListener("click", async () => {
+  const API_BASE = window.APP_CONFIG.API_BASE;
+
   const email = document.getElementById("email").value.trim();
   const msg = document.getElementById("msg");
   const btn = document.getElementById("resetBtn");
@@ -24,7 +24,6 @@ document.getElementById("resetBtn").addEventListener("click", async () => {
       body: JSON.stringify({ email }),
     });
 
-    // If server returns non-JSON error
     let data = {};
     try {
       data = await res.json();
@@ -37,7 +36,7 @@ document.getElementById("resetBtn").addEventListener("click", async () => {
     }
 
     msg.textContent = data.message || "Check your email for reset link!";
-    msg.classList.add(data.success ? "success" : "success");
+    msg.classList.add("success");
   } catch (err) {
     msg.textContent = "Something went wrong. Try again later.";
     msg.classList.add("error");

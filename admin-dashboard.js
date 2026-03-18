@@ -1,11 +1,9 @@
-import { API_BASE } from "./config.js";
-
-(() => {
-  // ✅ API helpers
-  const ADMIN_API = `${API_BASE}/admin`;
-  const ANNOUNCE_API = `${API_BASE}/announcements`;
-  const ADMIN_SETTINGS_API = `${API_BASE}/admin-settings`;
-  const ADMIN_VIDEOS_API = `${API_BASE}/admin/videos`;
+(function () {
+  const API_BASE = `${window.APP_CONFIG.API_BASE}/admin`;
+  const ROOT_API = window.APP_CONFIG.API_BASE;
+  const BASE_URL = window.APP_CONFIG.BASE_URL;
+  const ADMIN_VIDEO_API = `${ROOT_API}/admin/videos`;
+  const SETTINGS_API = `${ROOT_API}/admin-settings`;
 
   const token = localStorage.getItem("sl_token") || "";
 
@@ -35,15 +33,16 @@ import { API_BASE } from "./config.js";
   const saveEdit = document.getElementById("saveEdit");
   const cancelEdit = document.getElementById("cancelEdit");
 
+  const lecturesSection = document.getElementById("teacher-lectures");
+  const lecturesGrid = document.querySelector(".lectures-grid");
+  const lectureSearchInput = document.querySelector(".lectures-actions input");
+  const statusFilter = document.querySelector(".lectures-actions select");
+  const refreshLecturesBtn = document.querySelector(".refresh-btn");
+
   let roleChart = null;
   let approvalChart = null;
-
-  // ✅ Basic auth check
-  if (!token) {
-    alert("Session expired. Please login again.");
-    window.location.replace("index.html");
-    return;
-  }
+  let userGrowthChart = null;
+  let usageChart = null;
 
   // navigation switch
   navItems.forEach((btn) => {
@@ -53,15 +52,6 @@ import { API_BASE } from "./config.js";
       const id = btn.dataset.section;
       sections.forEach((s) => s.classList.remove("active-section"));
       document.getElementById(id)?.classList.add("active-section");
-
-      // ✅ auto load on tab open
-      if (id === "teacher-lectures") loadTeacherLectures();
-      if (id === "moderation") loadAdminAnnouncements();
-      if (id === "doubts") {
-        loadDoubtAnalytics();
-        loadAdminDoubts();
-      }
-      if (id === "settings") loadSettings();
     });
   });
 
@@ -71,24 +61,27 @@ import { API_BASE } from "./config.js";
     opts.headers["Authorization"] = `Bearer ${token}`;
     opts.headers["Accept"] = "application/json";
 
-    const res = await fetch(url, opts);
-
-    if (!res.ok) {
-      let msg = await res.text();
-      try {
-        msg = JSON.parse(msg).message;
-      } catch {}
-      throw new Error(msg || "Request failed");
+    try {
+      const res = await fetch(url, opts);
+      if (!res.ok) {
+        let msg = await res.text();
+        try {
+          msg = JSON.parse(msg).message;
+        } catch {}
+        throw new Error(msg || "Request failed");
+      }
+      if (res.status === 204) return null;
+      return await res.json();
+    } catch (e) {
+      console.error(e);
+      throw e;
     }
-
-    if (res.status === 204) return null;
-    return await res.json().catch(() => ({}));
   }
 
   // load all users
   async function loadAll() {
     try {
-      const users = await authFetch(`${ADMIN_API}/`);
+      const users = await authFetch(`${API_BASE}/`);
       renderUsers(users || []);
       renderStats(users || []);
       renderCharts(users || []);
@@ -108,13 +101,16 @@ import { API_BASE } from "./config.js";
       if (
         q &&
         !(
-          String(u.username || "").toLowerCase().includes(q) ||
-          String(u.email || "").toLowerCase().includes(q)
+          u.username.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q)
         )
-      )
+      ) {
         return false;
+      }
       return true;
     });
+
+    if (!userTableBody) return;
 
     userTableBody.innerHTML = "";
     filtered.forEach((u) => {
@@ -123,7 +119,10 @@ import { API_BASE } from "./config.js";
         <td>${escapeHtml(u.username)}</td>
         <td>${escapeHtml(u.email)}</td>
         <td>${escapeHtml(u.role)}</td>
-        <td>${escapeHtml(u.status || (u.approved ? "approved" : u.rejected ? "rejected" : "pending"))}</td>
+        <td>${escapeHtml(
+          u.status ||
+            (u.approved ? "approved" : u.rejected ? "rejected" : "pending")
+        )}</td>
         <td>
           <button class="btn" data-id="${u._id}" data-action="edit">Edit</button>
           <button class="btn delete" data-id="${u._id}" data-action="delete">Delete</button>
@@ -132,29 +131,36 @@ import { API_BASE } from "./config.js";
       userTableBody.appendChild(tr);
     });
 
-    userTableBody.querySelectorAll("[data-action='edit']").forEach((btn) =>
-      btn.addEventListener("click", () => openEdit(btn.dataset.id))
-    );
+    userTableBody
+      .querySelectorAll("[data-action='edit']")
+      .forEach((btn) =>
+        btn.addEventListener("click", () => openEdit(btn.dataset.id))
+      );
 
-    userTableBody.querySelectorAll("[data-action='delete']").forEach((btn) =>
-      btn.addEventListener("click", () => deleteUser(btn.dataset.id))
-    );
+    userTableBody
+      .querySelectorAll("[data-action='delete']")
+      .forEach((btn) =>
+        btn.addEventListener("click", () => deleteUser(btn.dataset.id))
+      );
   }
 
   // load pending teachers only
   async function loadPending() {
     try {
-      const users = await authFetch(`${ADMIN_API}/`);
-      const pending = (users || []).filter(
+      const users = await authFetch(`${API_BASE}/`);
+      const pending = users.filter(
         (u) =>
           u.role === "teacher" &&
           (u.status === "pending" || (!u.approved && !u.rejected))
       );
 
+      if (!approvalTableBody) return;
+
       approvalTableBody.innerHTML = "";
 
       pending.forEach((t) => {
         const tr = document.createElement("tr");
+
         tr.innerHTML = `
           <td>${escapeHtml(t.username)}</td>
           <td>${escapeHtml(t.email)}</td>
@@ -170,6 +176,7 @@ import { API_BASE } from "./config.js";
             <button class="reject" data-id="${t._id}">Reject</button>
           </td>
         `;
+
         approvalTableBody.appendChild(tr);
       });
 
@@ -189,19 +196,23 @@ import { API_BASE } from "./config.js";
     }
   }
 
-  // stats
   function renderStats(users) {
-    statTotal.textContent = users.length;
-    statStudents.textContent = users.filter((u) => u.role === "student").length;
-    statTeachers.textContent = users.filter((u) => u.role === "teacher").length;
-    statPending.textContent = users.filter(
-      (u) =>
-        u.role === "teacher" &&
-        (u.status === "pending" || (!u.approved && !u.rejected))
-    ).length;
+    if (statTotal) statTotal.textContent = users.length;
+    if (statStudents) {
+      statStudents.textContent = users.filter((u) => u.role === "student").length;
+    }
+    if (statTeachers) {
+      statTeachers.textContent = users.filter((u) => u.role === "teacher").length;
+    }
+    if (statPending) {
+      statPending.textContent = users.filter(
+        (u) =>
+          u.role === "teacher" &&
+          (u.status === "pending" || (!u.approved && !u.rejected))
+      ).length;
+    }
   }
 
-  // charts
   function renderCharts(users) {
     const students = users.filter((u) => u.role === "student").length;
     const teachers = users.filter((u) => u.role === "teacher").length;
@@ -215,7 +226,7 @@ import { API_BASE } from "./config.js";
 
     try {
       const ctxR = document.getElementById("roleChart")?.getContext("2d");
-      if (ctxR && typeof Chart !== "undefined") {
+      if (ctxR) {
         if (roleChart) roleChart.destroy();
         roleChart = new Chart(ctxR, {
           type: "pie",
@@ -229,7 +240,7 @@ import { API_BASE } from "./config.js";
 
     try {
       const ctxA = document.getElementById("approvalChart")?.getContext("2d");
-      if (ctxA && typeof Chart !== "undefined") {
+      if (ctxA) {
         if (approvalChart) approvalChart.destroy();
         approvalChart = new Chart(ctxA, {
           type: "bar",
@@ -243,8 +254,13 @@ import { API_BASE } from "./config.js";
   }
 
   async function approveTeacher(id) {
+    if (!token) {
+      alert("Admin token missing! Please log in again.");
+      return;
+    }
+
     try {
-      const res = await fetch(`${ADMIN_API}/approve/${id}`, {
+      const res = await fetch(`${API_BASE}/approve/${id}`, {
         method: "PUT",
         headers: {
           Authorization: "Bearer " + token,
@@ -252,14 +268,14 @@ import { API_BASE } from "./config.js";
         },
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
 
       if (res.ok) {
         alert("Teacher approved successfully!");
         loadPending();
         loadAll();
       } else {
-        alert("Approve failed: " + (data.message || "Unknown error"));
+        alert("Approve failed: " + data.message);
       }
     } catch (err) {
       alert("Approve failed: Server error");
@@ -267,8 +283,13 @@ import { API_BASE } from "./config.js";
   }
 
   async function rejectTeacher(id) {
+    if (!token) {
+      alert("Admin token missing! Please log in again.");
+      return;
+    }
+
     try {
-      const res = await fetch(`${ADMIN_API}/reject/${id}`, {
+      const res = await fetch(`${API_BASE}/reject/${id}`, {
         method: "PUT",
         headers: {
           Authorization: "Bearer " + token,
@@ -276,7 +297,7 @@ import { API_BASE } from "./config.js";
         },
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
 
       if (res.ok) {
         alert("Teacher rejected successfully!");
@@ -292,7 +313,7 @@ import { API_BASE } from "./config.js";
   }
 
   async function previewIdProof(fileName) {
-    const res = await fetch(`${ADMIN_API}/id-proof/${fileName}`, {
+    const res = await fetch(`${API_BASE}/id-proof/${fileName}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -310,7 +331,7 @@ import { API_BASE } from "./config.js";
   async function deleteUser(id) {
     if (!confirm("Delete user?")) return;
     try {
-      await authFetch(`${ADMIN_API}/${id}`, { method: "DELETE" });
+      await authFetch(`${API_BASE}/${id}`, { method: "DELETE" });
       alert("User deleted");
       loadAll();
       loadPending();
@@ -322,16 +343,17 @@ import { API_BASE } from "./config.js";
 
   async function openEdit(id) {
     try {
-      const u = await authFetch(`${ADMIN_API}/${id}`);
+      const u = await authFetch(`${API_BASE}/${id}`);
 
       editId.value = u._id;
       editUsername.value = u.username;
       editEmail.value = u.email;
       editRole.value = u.role;
       editStatus.value =
-        u.status || (u.approved ? "approved" : u.rejected ? "rejected" : "pending");
+        u.status ||
+        (u.approved ? "approved" : u.rejected ? "rejected" : "pending");
 
-      editModal.classList.add("active");
+      editModal?.classList.add("active");
     } catch (e) {
       alert("Failed loading user");
       console.error(e);
@@ -349,14 +371,14 @@ import { API_BASE } from "./config.js";
     };
 
     try {
-      await authFetch(`${ADMIN_API}/${id}`, {
+      await authFetch(`${API_BASE}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       alert("User updated");
-      editModal.classList.remove("active");
+      editModal?.classList.remove("active");
       loadAll();
       loadPending();
     } catch (e) {
@@ -365,10 +387,13 @@ import { API_BASE } from "./config.js";
     }
   });
 
-  cancelEdit?.addEventListener("click", () => editModal.classList.remove("active"));
+  cancelEdit?.addEventListener("click", () =>
+    editModal?.classList.remove("active")
+  );
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
-    localStorage.clear();
+    localStorage.removeItem("sl_token");
+    localStorage.removeItem("sl_username");
     window.location.replace("index.html");
   });
 
@@ -378,40 +403,26 @@ import { API_BASE } from "./config.js";
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
   }
+
   function escapeAttr(s) {
     return escapeHtml(s).replace(/"/g, "%22");
   }
 
-  // initial load
-  loadAll();
-  loadPending();
-
-  searchInput?.addEventListener("input", loadAll);
-  roleFilter?.addEventListener("change", loadAll);
-  refreshBtn?.addEventListener("click", () => {
-    if (searchInput) searchInput.value = "";
-    if (roleFilter) roleFilter.value = "";
-    loadAll();
-  });
-
-  // =====================================================
-  // ✅ TEACHER LECTURES – ADMIN
-  // =====================================================
-  const lecturesGrid = document.querySelector(".lectures-grid");
-  const lectureSearchInput = document.querySelector(".lectures-actions input");
-  const statusFilter = document.querySelector(".lectures-actions select");
-  const refreshLecturesBtn = document.querySelector(".refresh-btn");
-
+  // -----------------------------
+  // TEACHER LECTURES – ADMIN
+  // -----------------------------
   async function loadTeacherLectures() {
     if (!lecturesGrid) return;
     lecturesGrid.innerHTML = "⏳ Loading teacher lectures...";
 
     try {
-      const res = await fetch(ADMIN_VIDEOS_API, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(ADMIN_VIDEO_API, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      const videos = await res.json().catch(() => []);
+      const videos = await res.json();
       renderTeacherLectures(videos);
     } catch (err) {
       console.error(err);
@@ -442,22 +453,22 @@ import { API_BASE } from "./config.js";
           </div>
 
           <div class="lecture-content">
-            <h3>${escapeHtml(v.title)}</h3>
+            <h3>${v.title}</h3>
 
             <p class="teacher-name">
-              👨‍🏫 ${escapeHtml(v.teacherId?.username || "Unknown Teacher")}
-              <span>${escapeHtml(v.teacherId?.email || "")}</span>
+              👨‍🏫 ${v.teacherId?.username || "Unknown Teacher"}
+              <span>${v.teacherId?.email || ""}</span>
             </p>
 
             <div class="lecture-actions">
-              <button class="btn edit" onclick="editLecture('${v._id}')">Edit</button>
+              <button class="btn edit" onclick="window.editLecture('${v._id}')">Edit</button>
 
               <button class="btn ${isBlocked ? "unblock" : "block"}"
-                onclick="toggleLecture('${v._id}', ${!isBlocked})">
+                onclick="window.toggleLecture('${v._id}', ${!isBlocked})">
                 ${isBlocked ? "Unblock" : "Block"}
               </button>
 
-              <button class="btn delete" onclick="deleteLecture('${v._id}')">
+              <button class="btn delete" onclick="window.deleteLecture('${v._id}')">
                 Delete
               </button>
             </div>
@@ -468,11 +479,13 @@ import { API_BASE } from "./config.js";
       .join("");
   }
 
-  window.toggleLecture = async function (id, block) {
-    if (!confirm(`Are you sure you want to ${block ? "block" : "unblock"} this lecture?`)) return;
+  async function toggleLecture(id, block) {
+    if (!confirm(`Are you sure you want to ${block ? "block" : "unblock"} this lecture?`)) {
+      return;
+    }
 
     try {
-      await fetch(`${ADMIN_VIDEOS_API}/${id}/status`, {
+      await fetch(`${ADMIN_VIDEO_API}/${id}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -486,47 +499,35 @@ import { API_BASE } from "./config.js";
       console.error(err);
       alert("❌ Failed to update lecture status");
     }
-  };
+  }
 
-  window.deleteLecture = async function (id) {
+  async function deleteLecture(id) {
     if (!confirm("⚠️ Delete this lecture permanently?")) return;
 
     try {
-      await fetch(`${ADMIN_VIDEOS_API}/${id}`, {
+      await fetch(`${ADMIN_VIDEO_API}/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       loadTeacherLectures();
     } catch (err) {
       alert("❌ Failed to delete lecture");
     }
-  };
-
-  function extractVideoId(url) {
-    const reg = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = url?.match(reg);
-    return match ? match[1] : "";
   }
-
-  window.editLecture = function () {
-    alert("✏️ Edit lecture modal coming next");
-  };
-
-  lectureSearchInput?.addEventListener("input", filterLectures);
-  statusFilter?.addEventListener("change", filterLectures);
-  refreshLecturesBtn?.addEventListener("click", loadTeacherLectures);
 
   async function filterLectures() {
     const query = lectureSearchInput?.value.trim().toLowerCase() || "";
-    const status = statusFilter?.value || "All";
+    const status = statusFilter?.value || "";
 
     try {
-      const res = await fetch(ADMIN_VIDEOS_API, {
+      const res = await fetch(ADMIN_VIDEO_API, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      let videos = await res.json().catch(() => []);
+      let videos = await res.json();
 
       videos = videos.filter((v) => {
         const title = v.title?.toLowerCase() || "";
@@ -534,10 +535,13 @@ import { API_BASE } from "./config.js";
         const teacherEmail = v.teacherId?.email?.toLowerCase() || "";
 
         const matchesSearch =
-          title.includes(query) || teacherName.includes(query) || teacherEmail.includes(query);
+          title.includes(query) ||
+          teacherName.includes(query) ||
+          teacherEmail.includes(query);
 
         const matchesStatus =
           status === "All" ||
+          status === "" ||
           (status === "Active" && v.status === "published") ||
           (status === "Blocked" && v.status === "draft");
 
@@ -550,23 +554,61 @@ import { API_BASE } from "./config.js";
     }
   }
 
-  // =====================================================
-  // ✅ MODERATION: ADMIN ANNOUNCEMENTS
-  // =====================================================
+  function editLecture(id) {
+    alert("✏️ Edit lecture modal coming next");
+  }
+
+  function extractVideoId(url) {
+    const reg =
+      /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url?.match(reg);
+    return match ? match[1] : "";
+  }
+
+  // expose for inline onclick
+  window.toggleLecture = toggleLecture;
+  window.deleteLecture = deleteLecture;
+  window.editLecture = editLecture;
+
+  lectureSearchInput?.addEventListener("input", filterLectures);
+  statusFilter?.addEventListener("change", filterLectures);
+  refreshLecturesBtn?.addEventListener("click", loadTeacherLectures);
+
+  document
+    .querySelector('[data-section="teacher-lectures"]')
+    ?.addEventListener("click", () => {
+      loadTeacherLectures();
+    });
+
+  // -----------------------------
+  // ANNOUNCEMENT MODERATION
+  // -----------------------------
+  document
+    .querySelector('[data-section="moderation"]')
+    ?.addEventListener("click", () => {
+      loadAdminAnnouncements();
+    });
+
   async function loadAdminAnnouncements() {
     try {
-      const res = await fetch(`${ANNOUNCE_API}/admin/all`, {
-        headers: { Authorization: "Bearer " + token },
+      const res = await fetch(`${ROOT_API}/announcements/admin/all`, {
+        headers: {
+          Authorization: "Bearer " + token,
+        },
       });
 
-      const announcements = await res.json().catch(() => []);
-      const container = moderationBody;
+      const announcements = await res.json();
+
+      const container = document.getElementById("moderationBody");
+      if (!container) return;
 
       container.innerHTML = "";
 
       if (!announcements.length) {
         container.innerHTML = `
-          <tr><td colspan="4" style="text-align:center;">No announcements found</td></tr>
+          <tr>
+            <td colspan="4" style="text-align:center;">No announcements found</td>
+          </tr>
         `;
         return;
       }
@@ -574,11 +616,13 @@ import { API_BASE } from "./config.js";
       announcements.forEach((a) => {
         container.innerHTML += `
           <tr>
-            <td>${escapeHtml(a.message)}</td>
-            <td>${escapeHtml(a.postedBy?.username || "Deleted User")}</td>
+            <td>${a.message}</td>
+            <td>${a.postedBy?.username || "Deleted User"}</td>
             <td>Announcement</td>
             <td>
-              <button onclick="deleteAnnouncement('${a._id}')">🗑 Delete</button>
+              <button onclick="window.deleteAnnouncement('${a._id}')">
+                🗑 Delete
+              </button>
             </td>
           </tr>
         `;
@@ -588,34 +632,44 @@ import { API_BASE } from "./config.js";
     }
   }
 
-  window.deleteAnnouncement = async function (id) {
+  async function deleteAnnouncement(id) {
     if (!confirm("Delete this announcement?")) return;
 
-    await fetch(`${ANNOUNCE_API}/${id}`, {
+    await fetch(`${ROOT_API}/announcements/${id}`, {
       method: "DELETE",
-      headers: { Authorization: "Bearer " + token },
+      headers: {
+        Authorization: "Bearer " + token,
+      },
     });
 
     loadAdminAnnouncements();
-  };
+  }
 
-  // =====================================================
-  // ✅ DOUBTS (ADMIN)
-  // =====================================================
+  window.deleteAnnouncement = deleteAnnouncement;
+
+  // -----------------------------
+  // DOUBTS
+  // -----------------------------
+  if (!token) {
+    alert("Admin not logged in");
+    window.location.href = "index.html";
+    return;
+  }
+
   async function loadDoubtAnalytics() {
-    const res = await fetch(`${ADMIN_API}/doubts/analytics`, {
+    const res = await fetch(`${ROOT_API}/admin/doubts/analytics`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
 
-    document.getElementById("totalDoubts").innerText = data.total ?? 0;
-    document.getElementById("pendingDoubts").innerText = data.pending ?? 0;
-    document.getElementById("answeredDoubts").innerText = data.answered ?? 0;
+    document.getElementById("totalDoubts").innerText = data.total;
+    document.getElementById("pendingDoubts").innerText = data.pending;
+    document.getElementById("answeredDoubts").innerText = data.answered;
   }
 
   async function loadAdminDoubts() {
-    const res = await fetch(`${ADMIN_API}/doubts`, {
+    const res = await fetch(`${ROOT_API}/admin/doubts`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -624,27 +678,32 @@ import { API_BASE } from "./config.js";
       return;
     }
 
-    const doubts = await res.json().catch(() => []);
+    const doubts = await res.json();
+
     const tbody = document.getElementById("doubtAnalyticsBody");
+    if (!tbody) return;
+
     tbody.innerHTML = "";
 
     doubts.forEach((d) => {
       tbody.innerHTML += `
         <tr>
-          <td>${escapeHtml(d.student?.username || "Unknown")}</td>
-          <td>${escapeHtml(d.question)}</td>
+          <td>${d.student?.username || "Unknown"}</td>
+          <td>${d.question}</td>
           <td>${d.isAnswered ? "Answered" : "Pending"}</td>
           <td>${new Date(d.createdAt).toLocaleDateString()}</td>
-          <td><button onclick="deleteDoubt('${d._id}')">🗑</button></td>
+          <td>
+            <button onclick="window.deleteDoubt('${d._id}')">🗑</button>
+          </td>
         </tr>
       `;
     });
   }
 
-  window.deleteDoubt = async function (id) {
+  async function deleteDoubt(id) {
     if (!confirm("Delete this doubt?")) return;
 
-    const res = await fetch(`${ADMIN_API}/doubts/${id}`, {
+    const res = await fetch(`${ROOT_API}/admin/doubts/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -655,28 +714,34 @@ import { API_BASE } from "./config.js";
     } else {
       console.error("Failed to delete doubt");
     }
-  };
+  }
 
-  // =====================================================
-  // ✅ ADMIN SETTINGS
-  // =====================================================
+  window.deleteDoubt = deleteDoubt;
+
+  // -----------------------------
+  // SETTINGS
+  // -----------------------------
   const headers = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   });
 
   async function loadSettings() {
-    const res = await fetch(ADMIN_SETTINGS_API, { headers: headers() });
-    const s = await res.json().catch(() => ({}));
+    const res = await fetch(SETTINGS_API, { headers: headers() });
+    const s = await res.json();
 
-    document.getElementById("platformName").value = s.platformName || "SmartLearn";
-    document.getElementById("supportEmail").value = s.supportEmail || "smartlearn526@gmail.com";
+    document.getElementById("platformName").value =
+      s.platformName || "SmartLearn";
+    document.getElementById("supportEmail").value =
+      s.supportEmail || "smartlearn526@gmail.com";
 
     document.getElementById("maintenanceMode").checked = !!s.maintenanceMode;
     document.getElementById("enableSignup").checked = !!s.allowNewSignups;
 
-    document.getElementById("emailVerification").checked = !!s.requireEmailVerification;
-    document.getElementById("sessionTimeout").value = s.sessionTimeoutMinutes ?? 60;
+    document.getElementById("emailVerification").checked =
+      !!s.requireEmailVerification;
+    document.getElementById("sessionTimeout").value =
+      s.sessionTimeoutMinutes ?? 60;
     document.getElementById("maxAttempts").value = s.maxLoginAttempts ?? 5;
 
     document.getElementById("maxUpload").value = String(s.maxUploadMB ?? 10);
@@ -685,13 +750,12 @@ import { API_BASE } from "./config.js";
   }
 
   async function saveAllSettings(payload) {
-    const res = await fetch(ADMIN_SETTINGS_API, {
+    const res = await fetch(SETTINGS_API, {
       method: "PUT",
       headers: headers(),
       body: JSON.stringify(payload),
     });
-
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Save failed");
     alert("Saved ✅");
   }
@@ -707,9 +771,14 @@ import { API_BASE } from "./config.js";
 
   document.getElementById("saveSecurity")?.addEventListener("click", () => {
     saveAllSettings({
-      requireEmailVerification: document.getElementById("emailVerification").checked,
-      sessionTimeoutMinutes: Number(document.getElementById("sessionTimeout").value || 60),
-      maxLoginAttempts: Number(document.getElementById("maxAttempts").value || 5),
+      requireEmailVerification:
+        document.getElementById("emailVerification").checked,
+      sessionTimeoutMinutes: Number(
+        document.getElementById("sessionTimeout").value || 60
+      ),
+      maxLoginAttempts: Number(
+        document.getElementById("maxAttempts").value || 5
+      ),
     });
   });
 
@@ -721,4 +790,19 @@ import { API_BASE } from "./config.js";
     });
   });
 
+  // initial load
+  loadAll();
+  loadPending();
+  loadDoubtAnalytics();
+  loadAdminDoubts();
+  document.addEventListener("DOMContentLoaded", loadSettings);
+
+  // enable filters & refresh
+  searchInput?.addEventListener("input", loadAll);
+  roleFilter?.addEventListener("change", loadAll);
+  refreshBtn?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    if (roleFilter) roleFilter.value = "";
+    loadAll();
+  });
 })();

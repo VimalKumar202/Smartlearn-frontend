@@ -1,9 +1,19 @@
-import { API_BASE } from "./config.js";
+// ---------- APP CONFIG ----------
+const API_BASE = window.APP_CONFIG.API_BASE;   // example: https://smartlearn-backend.onrender.com/api
+const BASE_URL = window.APP_CONFIG.BASE_URL;   // example: https://smartlearn-backend.onrender.com
 
-// Base origin for file URLs like /uploads/...
-// Example: API_BASE = https://smartlearn-backend-3.onrender.com/api
-// API_ORIGIN = https://smartlearn-backend-3.onrender.com
-const API_ORIGIN = API_BASE.replace(/\/api\/?$/, "");
+const token = localStorage.getItem("sl_token");
+const notesToken = localStorage.getItem("sl_token");
+const SL_TOKEN = localStorage.getItem("sl_token");
+
+const PLANNER_API = `${API_BASE}/planner`;
+const ANNOUNCE_API = `${API_BASE}/announcements`;
+const NOTES_API_BASE = `${API_BASE}/notes`;
+const DASH_API = API_BASE;
+const REPORT_BASE = `${DASH_API}/report`;
+const PLANNER_BASE = `${DASH_API}/planner`;
+const MATERIALS_API = `${API_BASE}/student-materials`;
+const FILE_BASE = BASE_URL;
 
 // ---------- GLOBAL ELEMENTS ----------
 const navButtons = document.querySelectorAll(".nav .nav-item");
@@ -33,7 +43,12 @@ const chatBox = document.getElementById("chatBox");
 const defaultMale = "https://via.placeholder.com/128/6B7280/fff?text=👦";
 const defaultFemale = "https://via.placeholder.com/128/F59EAD/111?text=👧";
 
-const SL_TOKEN = localStorage.getItem("sl_token");
+// ---------- HELPERS ----------
+function buildFileUrl(path = "") {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 // ---------- NAVIGATION ----------
 function showSection(id) {
@@ -46,7 +61,6 @@ function showSection(id) {
     s.classList.toggle("active-section", s.id === id);
   });
 
-  // ✅ when quizzes tab opens
   if (id === "quizzes") {
     loadQuizzes();
     loadLearningReport();
@@ -118,33 +132,35 @@ if (uploadArea) {
     if (f) alert(`Demo: received file "${f.name}"`);
   });
 
-  fileInput.addEventListener("change", (e) => {
+  fileInput?.addEventListener("change", (e) => {
     const f = e.target.files[0];
     if (f) alert(`Demo: selected "${f.name}"`);
   });
 }
 
 // ---------- AI PANEL ----------
-// OPEN PANEL
 askAiBtn?.addEventListener("click", () => {
   askAiPanel.classList.add("open");
   askAiPanel.setAttribute("aria-hidden", "false");
 
-  aiChatBox.innerHTML = `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+  aiChatBox.innerHTML =
+    `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+
   aiInput.value = "";
 });
 
-// close PANEL
 closeAskAi?.addEventListener("click", () => {
   askAiPanel.classList.remove("open");
   askAiPanel.setAttribute("aria-hidden", "true");
 
-  aiChatBox.innerHTML = `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+  aiChatBox.innerHTML =
+    `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
+
   aiInput.value = "";
 });
 
 // ==============================
-// ADD MESSAGE (Professional UI)
+// ADD MESSAGE
 // ==============================
 function addMessage(sender, text) {
   const div = document.createElement("div");
@@ -156,7 +172,7 @@ function addMessage(sender, text) {
     let formattedText = text;
     formattedText = formattedText.replace(/(\d+\.)/g, "\n\n$1 ");
 
-    const html = typeof marked !== "undefined" ? marked.parse(formattedText) : formattedText;
+    const html = marked.parse(formattedText);
     div.innerHTML = `🤖 <div class="ai-content">${html}</div>`;
   }
 
@@ -165,7 +181,7 @@ function addMessage(sender, text) {
 }
 
 // ==============================
-// CALL BACKEND (AI)
+// CALL BACKEND
 // ==============================
 async function callSmartLearn(prompt) {
   try {
@@ -175,7 +191,7 @@ async function callSmartLearn(prompt) {
       body: JSON.stringify({ prompt }),
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     return data.reply || "No response";
   } catch {
     return "❌ AI Server Error";
@@ -198,6 +214,7 @@ aiSend?.addEventListener("click", async () => {
   aiChatBox.appendChild(thinking);
 
   const reply = await callSmartLearn(text);
+
   thinking.remove();
   addMessage("ai", reply);
 });
@@ -209,8 +226,7 @@ aiInput?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") aiSend.click();
 });
 
-// ---------- YT VIDEO LOGIC (CLEAN & FINAL) ----------
-
+// ---------- YT VIDEO LOGIC ----------
 const ytSearchBtn = document.getElementById("ytSearchBtn");
 const ytSearchInput = document.getElementById("ytSearchInput");
 const videoGrid = document.getElementById("videoGrid");
@@ -229,13 +245,14 @@ async function loadTeacherVideos() {
       },
     });
 
-    const videos = await res.json().catch(() => []);
+    const videos = await res.json();
     teacherVideosCache = videos;
 
     videoGrid.innerHTML = "";
 
-    if (!Array.isArray(videos) || !videos.length) {
-      videoGrid.innerHTML = "<p class='muted'>No teacher videos available</p>";
+    if (!videos.length) {
+      videoGrid.innerHTML =
+        "<p class='muted'>No teacher videos available</p>";
       return;
     }
 
@@ -255,21 +272,23 @@ async function loadTeacherVideos() {
     });
   } catch (err) {
     console.error(err);
-    videoGrid.innerHTML = "<p class='muted'>Failed to load teacher videos</p>";
+    videoGrid.innerHTML =
+      "<p class='muted'>Failed to load teacher videos</p>";
   }
 }
 
 function extractVideoId(url) {
   if (!url) return "";
+
   const regExp =
     /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
   const match = url.match(regExp);
   return match ? match[1] : "";
 }
 
 loadTeacherVideos();
 
-// ---- Tab Switching ----
 ytTabs.forEach((tab) => {
   tab.addEventListener("click", () => {
     ytTabs.forEach((t) => t.classList.remove("active"));
@@ -294,7 +313,8 @@ function searchTeacherVideos(query) {
   videoGrid.innerHTML = "";
 
   if (!filtered.length) {
-    videoGrid.innerHTML = "<p class='muted'>No matching teacher videos found</p>";
+    videoGrid.innerHTML =
+      "<p class='muted'>No matching teacher videos found</p>";
     return;
   }
 
@@ -314,7 +334,6 @@ function searchTeacherVideos(query) {
   });
 }
 
-// ---- YouTube Search (Backend API) ----
 ytSearchBtn?.addEventListener("click", async () => {
   const query = ytSearchInput.value.trim();
   if (!query) return alert("Enter a topic");
@@ -330,9 +349,11 @@ ytSearchBtn?.addEventListener("click", async () => {
     const res = await fetch(
       `${API_BASE}/youtube/search?q=${encodeURIComponent(query)}`
     );
-    const videos = await res.json().catch(() => []);
+    const videos = await res.json();
 
-    videoGrid.innerHTML = (Array.isArray(videos) ? videos : []).map((v) => `
+    videoGrid.innerHTML = videos
+      .map(
+        (v) => `
       <div class="video-card">
         <iframe 
           src="https://www.youtube.com/embed/${v.videoId}" 
@@ -341,7 +362,9 @@ ytSearchBtn?.addEventListener("click", async () => {
         <h4>${v.title}</h4>
         <p>${v.channel}</p>
       </div>
-    `).join("");
+    `
+      )
+      .join("");
   } catch (err) {
     console.error(err);
     videoGrid.innerHTML = "❌ Failed to load videos";
@@ -349,24 +372,19 @@ ytSearchBtn?.addEventListener("click", async () => {
 });
 
 // ======================
-// 📅 STUDY PLANNER (FINAL WORKING)
+// STUDY PLANNER
 // ======================
-
-const PLANNER_API_BASE = `${API_BASE}/planner`;
 let editTaskId = null;
 
-// ----------------------
-// AUTH HEADERS
-// ----------------------
 function authHeaders() {
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${SL_TOKEN}`,
+    Authorization: `Bearer ${token}`,
   };
 }
 
 // ======================
-// 🌙 DARK MODE
+// DARK MODE
 // ======================
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("toggleDarkMode");
@@ -388,16 +406,15 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ======================
-// 📌 DASHBOARD UPCOMING
+// DASHBOARD UPCOMING
 // ======================
 async function loadDashboardUpcoming() {
-  if (!SL_TOKEN) return;
+  if (!token) return;
 
-  const res = await fetch(`${PLANNER_API_BASE}/my-tasks`, {
+  const res = await fetch(`${PLANNER_API}/my-tasks`, {
     headers: authHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
-  const tasks = data.tasks || [];
+  const { tasks } = await res.json();
 
   const list = document.getElementById("dashboardUpcomingTasks");
   if (!list) return;
@@ -416,16 +433,15 @@ async function loadDashboardUpcoming() {
 }
 
 // ======================
-// 📋 LOAD PLANNER
+// LOAD PLANNER
 // ======================
 async function loadPlanner() {
-  if (!SL_TOKEN) return;
+  if (!token) return;
 
-  const res = await fetch(`${PLANNER_API_BASE}/my-tasks`, {
+  const res = await fetch(`${PLANNER_API}/my-tasks`, {
     headers: authHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
-  const tasks = data.tasks || [];
+  const { tasks } = await res.json();
 
   const todayList = document.getElementById("plannerTodayTasks");
   const upcomingList = document.getElementById("plannerUpcomingTasks");
@@ -455,17 +471,19 @@ async function loadPlanner() {
             ? `<button onclick="completeTask('${task._id}')">✔</button>`
             : "✅"
         }
-        <button onclick="openEdit('${task._id}')"></button>
+        <button onclick="openEdit('${task._id}')">✏️</button>
         <button onclick="deleteTask('${task._id}')">❌</button>
       </div>
     `;
 
-    task.date === todayDate ? todayList.appendChild(li) : upcomingList.appendChild(li);
+    task.date === todayDate
+      ? todayList.appendChild(li)
+      : upcomingList.appendChild(li);
   });
 }
 
 // ======================
-// ➕ ADD TASK (FIXED + RESET FORM)
+// ADD TASK
 // ======================
 document.getElementById("saveTask")?.addEventListener("click", async () => {
   const subjectEl = document.getElementById("subject");
@@ -474,7 +492,7 @@ document.getElementById("saveTask")?.addEventListener("click", async () => {
   const dateEl = document.getElementById("date");
   const timeEl = document.getElementById("time");
 
-  await fetch(`${PLANNER_API_BASE}/add`, {
+  await fetch(`${PLANNER_API}/add`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({
@@ -497,21 +515,19 @@ document.getElementById("saveTask")?.addEventListener("click", async () => {
 });
 
 // ======================
-// ✏️ OPEN EDIT
+// OPEN EDIT
 // ======================
 async function openEdit(taskId) {
   editTaskId = taskId;
 
-  const res = await fetch(`${PLANNER_API_BASE}/my-tasks`, {
+  const res = await fetch(`${PLANNER_API}/my-tasks`, {
     headers: authHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
-  const tasks = data.tasks || [];
+  const { tasks } = await res.json();
 
   const task = tasks.find((t) => t._id === taskId);
   if (!task) return;
 
-  // These elements are assumed to exist in your HTML (same as your original code)
   editSubject.value = task.subject;
   editTitle.value = task.title;
   editPriority.value = task.priority || "medium";
@@ -522,10 +538,10 @@ async function openEdit(taskId) {
 }
 
 // ======================
-// 🔄 UPDATE TASK
+// UPDATE TASK
 // ======================
 updateTaskBtn?.addEventListener("click", async () => {
-  await fetch(`${PLANNER_API_BASE}/${editTaskId}`, {
+  await fetch(`${PLANNER_API}/${editTaskId}`, {
     method: "PUT",
     headers: authHeaders(),
     body: JSON.stringify({
@@ -544,7 +560,7 @@ updateTaskBtn?.addEventListener("click", async () => {
 });
 
 // ======================
-// ❌ CANCEL EDIT
+// CANCEL EDIT
 // ======================
 closeEditModal?.addEventListener("click", () => {
   editTaskModal.classList.add("hidden");
@@ -552,10 +568,10 @@ closeEditModal?.addEventListener("click", () => {
 });
 
 // ======================
-// ✔ COMPLETE
+// COMPLETE
 // ======================
 async function completeTask(id) {
-  await fetch(`${PLANNER_API_BASE}/${id}/status`, {
+  await fetch(`${PLANNER_API}/${id}/status`, {
     method: "PATCH",
     headers: authHeaders(),
     body: JSON.stringify({ status: "completed" }),
@@ -566,10 +582,10 @@ async function completeTask(id) {
 }
 
 // ======================
-// ❌ DELETE
+// DELETE
 // ======================
 async function deleteTask(id) {
-  await fetch(`${PLANNER_API_BASE}/${id}`, {
+  await fetch(`${PLANNER_API}/${id}`, {
     method: "DELETE",
     headers: authHeaders(),
   });
@@ -579,16 +595,15 @@ async function deleteTask(id) {
 }
 
 // ======================
-// 🚀 INIT
+// INIT
 // ======================
 loadPlanner();
 loadDashboardUpcoming();
 
 // =====================================================
-// 📢 ANNOUNCEMENTS (FINAL & SAFE)
+// ANNOUNCEMENTS
 // =====================================================
 const announcementList = document.getElementById("announcementList");
-const ANNOUNCE_API = `${API_BASE}/announcements`;
 
 async function loadAnnouncements() {
   if (!announcementList) return;
@@ -602,10 +617,10 @@ async function loadAnnouncements() {
 
     if (!res.ok) throw new Error("Failed to fetch announcements");
 
-    const announcements = await res.json().catch(() => []);
+    const announcements = await res.json();
     announcementList.innerHTML = "";
 
-    if (!Array.isArray(announcements) || !announcements.length) {
+    if (!announcements.length) {
       announcementList.innerHTML = "<p class='muted'>No announcements</p>";
       return;
     }
@@ -617,7 +632,7 @@ async function loadAnnouncements() {
       const attachmentURL = a.attachment
         ? a.attachment.startsWith("http")
           ? a.attachment
-          : API_ORIGIN + a.attachment
+          : buildFileUrl(a.attachment)
         : null;
 
       card.innerHTML = `
@@ -682,7 +697,7 @@ async function loadMyDoubts() {
     },
   });
 
-  const doubts = await res.json().catch(() => []);
+  const doubts = await res.json();
   container.innerHTML = "";
 
   if (!Array.isArray(doubts)) return;
@@ -723,11 +738,8 @@ async function deleteDoubt(id) {
 }
 
 // ===============================
-// 📝 NOTES CONFIG (ONLY NOTES)
+// NOTES
 // ===============================
-const NOTES_API_BASE = `${API_BASE}/notes`;
-const notesToken = localStorage.getItem("sl_token");
-
 document.addEventListener("DOMContentLoaded", loadNotes);
 
 async function loadNotes() {
@@ -745,11 +757,6 @@ async function loadNotes() {
   } catch (err) {
     console.error("Notes load error:", err);
   }
-}
-
-function normalizePath(p = "") {
-  const fixed = String(p).replace(/\\/g, "/");
-  return fixed.startsWith("/") ? fixed : `/${fixed}`;
 }
 
 function renderNotes(notes) {
@@ -773,13 +780,11 @@ function renderNotes(notes) {
     list.innerHTML += `<li class="subject-title">📁 ${subject}</li>`;
 
     grouped[subject].forEach((note) => {
-      const fileHref = note.fileUrl ? `${API_ORIGIN}${normalizePath(note.fileUrl)}` : "#";
-
       list.innerHTML += `
         <li class="note-item">
           <span><strong>${note.title}</strong></span>
           <span class="note-actions">
-            <a href="${fileHref}" target="_blank" rel="noopener">View</a>
+            <a href="${buildFileUrl(note.fileUrl)}" target="_blank">View</a>
             <button onclick="editNote('${note._id}')">✏️</button>
             <button onclick="deleteNote('${note._id}')">🗑</button>
           </span>
@@ -789,7 +794,9 @@ function renderNotes(notes) {
   });
 }
 
-// SEARCH NOTES (FIXED ✅)
+// ===============================
+// SEARCH NOTES
+// ===============================
 const searchNotesInput = document.getElementById("searchNotes");
 
 if (searchNotesInput) {
@@ -824,7 +831,9 @@ if (searchNotesInput) {
   });
 }
 
+// ===============================
 // UPLOAD MODAL
+// ===============================
 function openUploadModal() {
   document.getElementById("uploadModal").style.display = "flex";
 }
@@ -833,7 +842,9 @@ function closeUploadModal() {
   document.getElementById("uploadModal").style.display = "none";
 }
 
+// ===============================
 // UPLOAD NOTE
+// ===============================
 async function uploadNote() {
   const fd = new FormData();
   fd.append("title", noteTitle.value);
@@ -852,7 +863,9 @@ async function uploadNote() {
   loadNotes();
 }
 
+// ===============================
 // DELETE NOTE
+// ===============================
 async function deleteNote(id) {
   if (!confirm("Delete this note?")) return;
 
@@ -888,9 +901,8 @@ async function editNote(id) {
 }
 
 // ===============================
-// QUIZZES
+// QUIZ MODEL
 // ===============================
-
 let currentQuiz = null;
 let currentQuizId = null;
 
@@ -927,12 +939,14 @@ async function generateAiQuiz() {
     }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
 
   if (!res.ok) {
     alert(data.message || "AI quiz generation failed");
     return;
   }
+
+  console.log("AI Quiz:", data.quiz);
 
   closeQuizModal();
   alert("✅ AI Quiz Generated Successfully!");
@@ -946,7 +960,7 @@ async function loadQuizzes() {
     },
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   renderQuizzes(data.quizzes);
 }
 
@@ -957,15 +971,17 @@ async function startQuiz(quizId) {
     },
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
 
   currentQuiz = data.quiz;
-  currentQuizId = data.quiz?._id;
+  currentQuizId = data.quiz._id;
 
   document.getElementById("quizTitle").innerText = currentQuiz.title;
 
   const pdfTopic = document.getElementById("pdfTopic");
-  if (pdfTopic) pdfTopic.innerText = currentQuiz.title;
+  if (pdfTopic) {
+    pdfTopic.innerText = currentQuiz.title;
+  }
 
   const form = document.getElementById("quizForm");
   form.innerHTML = "";
@@ -989,10 +1005,10 @@ async function startQuiz(quizId) {
 
     if (q.type === "SHORT") {
       html += `
-        <div class="short-readonly">
-          📝 Short Answer Question (Study Mode)
-        </div>
-      `;
+      <div class="short-readonly">
+        📝 Short Answer Question (Study Mode)
+      </div>
+    `;
     }
 
     html += `<hr/>`;
@@ -1003,6 +1019,7 @@ async function startQuiz(quizId) {
   document.getElementById("quizPlayer").style.display = "block";
 
   const isShortQuiz = currentQuiz.questions.every((q) => q.type === "SHORT");
+
   document.querySelector("[onclick='submitCurrentQuiz()']").style.display =
     isShortQuiz ? "none" : "inline-block";
 }
@@ -1017,7 +1034,7 @@ async function submitQuiz(quizId, answers) {
     body: JSON.stringify({ answers }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json();
   alert(`Score: ${data.score}\n\nAI Feedback:\n${data.aiFeedback}`);
 }
 
@@ -1050,25 +1067,28 @@ function renderQuizzes(quizzes) {
     card.className = "quiz-card";
 
     card.innerHTML = `
-      <div class="quiz-card-top">
-        <h3 class="quiz-card-title">${quiz.title}</h3>
-        <span class="pill">${quiz.isAiGenerated ? "🤖 AI Generated" : "✍️ Manual"}</span>
-      </div>
+  <div class="quiz-card-top">
+    <h3 class="quiz-card-title">${quiz.title}</h3>
+    <span class="pill">${quiz.isAiGenerated ? "🤖 AI Generated" : "✍️ Manual"}</span>
+  </div>
 
-      <div class="quiz-meta">
-        <span class="pill gray">🧾 Questions: ${quiz.questions.length}</span>
-      </div>
+  <div class="quiz-meta">
+    <span class="pill gray">🧾 Questions: ${quiz.questions.length}</span>
+  </div>
 
-      <div class="quiz-actions">
-        <button class="btn btn-primary" onclick="startQuiz('${quiz._id}')">Start Quiz</button>
-        <button class="btn btn-danger" onclick="deleteQuiz('${quiz._id}')">Delete</button>
-      </div>
-    `;
+  <div class="quiz-actions">
+    <button class="btn btn-primary" onclick="startQuiz('${quiz._id}')">Start Quiz</button>
+    <button class="btn btn-danger" onclick="deleteQuiz('${quiz._id}')">Delete</button>
+  </div>
+`;
 
     quizList.appendChild(card);
   });
 }
 
+// ===============================
+// SUBMIT CURRENT QUIZ
+// ===============================
 function submitCurrentQuiz() {
   if (!currentQuiz) {
     alert("Quiz not loaded");
@@ -1076,6 +1096,7 @@ function submitCurrentQuiz() {
   }
 
   const isShortQuiz = currentQuiz.questions.every((q) => q.type === "SHORT");
+
   if (isShortQuiz) {
     alert("Short Answer quizzes are read-only.");
     return;
@@ -1085,10 +1106,12 @@ function submitCurrentQuiz() {
 
   currentQuiz.questions.forEach((q, index) => {
     const selected = document.querySelector(`input[name="q${index}"]:checked`);
+
     if (!selected) {
       alert("Please answer all questions");
       throw new Error("Incomplete quiz");
     }
+
     answers.push(Number(selected.value));
   });
 
@@ -1097,15 +1120,78 @@ function submitCurrentQuiz() {
 
 function closeQuizPlayer() {
   document.getElementById("quizPlayer").style.display = "none";
+
   const quizList = document.getElementById("quizList");
-  if (quizList) quizList.style.display = "grid";
+  quizList.style.display = "grid";
+}
+
+async function downloadPDF() {
+  if (!currentQuiz) {
+    alert("Quiz not loaded");
+    return;
+  }
+
+  const pdfContainer = document.getElementById("pdfContainer");
+  const pdfTopic = document.getElementById("pdfTopic");
+  const pdfQuizContent = document.getElementById("pdfQuizContent");
+
+  pdfTopic.innerText = currentQuiz.title;
+
+  let cleanHTML = "";
+  currentQuiz.questions.forEach((q, index) => {
+    cleanHTML += `<div class="pdf-question">
+      <p><strong>Q${index + 1}. ${q.q}</strong></p>`;
+
+    if ((q.type === "MCQ" || q.type === "TRUE_FALSE") && Array.isArray(q.options)) {
+      q.options.forEach((opt) => {
+        cleanHTML += `<p>• ${opt}</p>`;
+      });
+    }
+
+    if (q.type === "SHORT") {
+      cleanHTML += `<div class="answer-line"></div><div class="answer-line"></div>`;
+    }
+
+    cleanHTML += `</div>`;
+  });
+
+  pdfQuizContent.innerHTML = cleanHTML;
+
+  pdfContainer.style.visibility = "visible";
+  pdfContainer.style.opacity = "1";
+  pdfContainer.style.zIndex = "9999";
+
+  await document.fonts?.ready;
+  await new Promise((r) =>
+    requestAnimationFrame(() => requestAnimationFrame(r))
+  );
+
+  console.log("pdfContainer height:", pdfContainer.getBoundingClientRect().height);
+
+  await html2pdf()
+    .set({
+      margin: 10,
+      filename: `${currentQuiz.title}.pdf`,
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        scrollY: 0,
+        windowWidth: pdfContainer.scrollWidth,
+      },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    })
+    .from(pdfContainer)
+    .save();
+
+  pdfContainer.style.opacity = "0";
+  pdfContainer.style.visibility = "hidden";
+  pdfContainer.style.zIndex = "-1";
 }
 
 document.addEventListener("DOMContentLoaded", loadQuizzes);
 
-// ===============================
-// SETTINGS
-// ===============================
+//-------------------------------------------------//
 document.addEventListener("DOMContentLoaded", async () => {
   const displayName = document.getElementById("displayName");
   const email = document.getElementById("email");
@@ -1120,14 +1206,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Fetch failed");
 
-    displayName.value = data.username || "";
-    email.value = data.email || "";
-    email.readOnly = true;
+    if (displayName) displayName.value = data.username || "";
+    if (email) {
+      email.value = data.email || "";
+      email.readOnly = true;
+    }
 
-    toggleSound.checked = !!data.preferences?.sound;
+    if (toggleSound) toggleSound.checked = !!data.preferences?.sound;
   } catch (err) {
     console.log("Settings error:", err.message);
   }
@@ -1150,7 +1238,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Update failed");
 
       alert("✅ Profile updated successfully!");
@@ -1160,9 +1248,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 });
 
-// ===============================
-// REPORT
-// ===============================
+//-------------------report-----------------------------------
 let performanceChart;
 
 async function loadLearningReport() {
@@ -1208,10 +1294,18 @@ async function loadLearningReport() {
   }
 
   document.getElementById("strengthText").innerHTML =
-    `<strong>Strength:</strong> ${data.insights.strengths.length ? data.insights.strengths.join(", ") : "—"}`;
+    `<strong>Strength:</strong> ${
+      data.insights.strengths.length
+        ? data.insights.strengths.join(", ")
+        : "—"
+    }`;
 
   document.getElementById("weakText").innerHTML =
-    `<strong>Needs Improvement:</strong> ${data.insights.weaknesses.length ? data.insights.weaknesses.join(", ") : "—"}`;
+    `<strong>Needs Improvement:</strong> ${
+      data.insights.weaknesses.length
+        ? data.insights.weaknesses.join(", ")
+        : "—"
+    }`;
 
   const activityList = document.getElementById("activityList");
   activityList.innerHTML = "";
@@ -1255,12 +1349,8 @@ async function loadLearningReport() {
 }
 
 // ===============================
-// DASHBOARD HOME LOADER
+// DASHBOARD (HOME)
 // ===============================
-
-const REPORT_BASE = `${API_BASE}/report`;
-const PLANNER_BASE = `${API_BASE}/planner`;
-
 async function apiFetch(url) {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${SL_TOKEN}` },
@@ -1380,7 +1470,7 @@ async function setDashboardUsernameFromDB() {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed to fetch user");
 
     const username = data.username || "Student";
@@ -1415,7 +1505,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// Support email
 async function loadSupportEmail() {
   const link = document.getElementById("supportEmailLink");
   if (!link) return;
@@ -1428,7 +1517,7 @@ async function loadSupportEmail() {
     const res = await fetch(`${API_BASE}/public/settings`);
     if (!res.ok) return;
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     const email = data.supportEmail || fallback;
 
     link.textContent = email;
@@ -1437,13 +1526,14 @@ async function loadSupportEmail() {
     console.error("Support email load failed:", err);
   }
 }
+
 document.addEventListener("DOMContentLoaded", loadSupportEmail);
 
-// ===============================
-// STUDENT MATERIALS
-// ===============================
-const MATERIALS_API = `${API_BASE}/student-materials`;
-const FILE_BASE = API_ORIGIN;
+//------------------------------------------------------------------------------//
+function normalizePath(p = "") {
+  const fixed = String(p).replace(/\\/g, "/");
+  return fixed.startsWith("/") ? fixed : `/${fixed}`;
+}
 
 async function loadStudentMaterials() {
   const box = document.getElementById("teacherMaterialsList");
@@ -1453,10 +1543,10 @@ async function loadStudentMaterials() {
 
   try {
     const res = await fetch(MATERIALS_API, {
-      headers: { Authorization: `Bearer ${SL_TOKEN}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Failed");
 
     const materials = data.materials || [];

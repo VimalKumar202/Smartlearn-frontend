@@ -1,12 +1,12 @@
-import { API_BASE } from "./config.js";
-
 document.addEventListener("DOMContentLoaded", () => {
+  const API_BASE = window.APP_CONFIG.API_BASE;
+
   const loginBox = document.querySelector(".login");
   const signupBox = document.querySelector(".signup");
   const showSignup = document.getElementById("showSignup");
   const showLogin = document.getElementById("showLogin");
 
-  // 🔁 Toggle Between Login and Signup
+  // Toggle Between Login and Signup
   showSignup.addEventListener("click", (e) => {
     e.preventDefault();
     loginBox.classList.remove("active");
@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "Forget.html";
   });
 
-  // 📝 SIGNUP FUNCTION
+  // SIGNUP FUNCTION
   document.getElementById("signupBtn").addEventListener("click", async () => {
     const username = document.getElementById("signup-username").value.trim();
     const email = document.getElementById("signup-email").value.trim();
@@ -37,7 +37,6 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // Require ID proof for teacher/admin
     if ((role === "teacher" || role === "admin") && !idProof) {
       alert("Please upload your ID proof!");
       return;
@@ -56,17 +55,13 @@ document.addEventListener("DOMContentLoaded", () => {
         body: formData,
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {}
+      const data = await res.json();
 
       if (!res.ok) {
         alert(data.message || "Signup failed");
         return;
       }
 
-      // ✅ Role-based message
       if (role === "teacher") {
         alert(
           "Your account has been created successfully. Please wait for admin approval before logging in."
@@ -75,7 +70,8 @@ document.addEventListener("DOMContentLoaded", () => {
         loginBox.classList.add("active");
       } else if (role === "student") {
         alert("Signup successful! You can now log in.");
-        window.location.href = "";
+        signupBox.classList.remove("active");
+        loginBox.classList.add("active");
       } else {
         alert(data.message || "Signup complete!");
       }
@@ -93,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 🔐 LOGIN FUNCTION (Username OR Email)
+  // LOGIN FUNCTION
   document.getElementById("loginBtn").addEventListener("click", async () => {
     const identifier = document.getElementById("login-identifier").value.trim();
     const password = document.getElementById("login-password").value.trim();
@@ -111,26 +107,21 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify({ identifier, password, role }),
       });
 
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {}
+      const data = await res.json();
 
       if (!res.ok) {
         alert(data.message || "Login failed");
         return;
       }
 
-      alert(data.message || "Login successful!");
+      alert(data.message);
 
-      // ✅ Save user data locally for dashboard use
       localStorage.setItem("sl_token", data.token);
       localStorage.setItem("sl_userId", data.user.id);
       localStorage.setItem("sl_username", data.user.username);
       localStorage.setItem("sl_email", data.user.email);
       localStorage.setItem("sl_role", data.user.role);
 
-      // Redirect based on role
       if (role === "student") {
         window.location.href = "student-dashboard.html";
       } else if (role === "teacher") {

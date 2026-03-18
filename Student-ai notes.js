@@ -1,7 +1,7 @@
-import { API_BASE } from "./config.js";
-
 (() => {
   console.log("✅ AI Notes Section Loaded");
+
+  const API_BASE = window.APP_CONFIG.API_BASE;
 
   const section = document.getElementById("ai-notes");
   if (!section) return;
@@ -14,13 +14,10 @@ import { API_BASE } from "./config.js";
   let uploadedFile = null;
   let generatedText = "";
 
-  // ✅ MATCH BACKEND ROUTE EXACTLY
   const API_URL = `${API_BASE}/ai-notes/generate-notes`;
 
-  // 🚫 Stop sidebar navigation clicks
   section.addEventListener("click", (e) => e.stopPropagation());
 
-  // ---------- FILE UPLOAD ----------
   fileInput.addEventListener("change", () => {
     uploadedFile = fileInput.files[0];
 
@@ -32,7 +29,6 @@ import { API_BASE } from "./config.js";
     `;
   });
 
-  // ---------- AI GENERATION ----------
   buttons.forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.preventDefault();
@@ -58,33 +54,27 @@ import { API_BASE } from "./config.js";
           body: formData,
         });
 
-        let data = {};
-        try {
-          data = await res.json();
-        } catch {}
+        const data = await res.json();
 
         if (!res.ok || !data.success) {
-          throw new Error(data.message || `AI failed (Status: ${res.status})`);
+          throw new Error(data.message || "AI failed");
         }
 
-        // ✅ CORRECT FIELD
-        generatedText = data.notes || "";
+        generatedText = data.notes;
 
         outputBox.innerHTML = `
-          <pre style="white-space:pre-wrap;line-height:1.7;">
-${generatedText}
-          </pre>
+          <pre style="white-space:pre-wrap;line-height:1.7;">${generatedText}</pre>
         `;
       } catch (err) {
         console.error("AI Notes Error:", err);
-        outputBox.innerHTML = `<p style="color:red;">❌ ${err.message || "Failed to generate AI notes"}</p>`;
+        outputBox.innerHTML =
+          `<p style="color:red;">❌ Failed to generate AI notes</p>`;
       } finally {
         buttons.forEach((b) => (b.disabled = false));
       }
     });
   });
 
-  // ---------- DOWNLOAD PDF ----------
   downloadBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
