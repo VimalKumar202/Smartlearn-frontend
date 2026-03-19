@@ -226,6 +226,18 @@ a:hover {
   margin-bottom: 8px;
   color: #374151;
 }
+.mobile-heading {
+  display: none;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #111827;
+}
+
+.mobile-heading span {
+  color: #14b8a6;
+}
 
 /* Animation */
 @keyframes fadeUp {
@@ -415,27 +427,23 @@ a:hover {
 /* Hide banner content on small screens */
 @media (max-width: 480px) {
 
-  /* Completely remove banner */
   .auth-left {
     display: none;
   }
 
-  /* Make login full screen style */
-  .auth-card {
-    border-radius: 16px;
-    min-height: auto;
+  .mobile-heading {
+    display: block;
   }
 
   .auth-right {
     padding: 24px 18px;
   }
 
-  .form-logo {
-    justify-content: center;
+  .auth-right h2 {
     text-align: center;
   }
 
-  .auth-right h2 {
-    text-align: center;
+  .form-logo {
+    justify-content: center;
   }
 }
