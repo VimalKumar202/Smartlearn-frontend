@@ -43,6 +43,15 @@ const chatBox = document.getElementById("chatBox");
 const defaultMale = "https://via.placeholder.com/128/6B7280/fff?text=👦";
 const defaultFemale = "https://via.placeholder.com/128/F59EAD/111?text=👧";
 
+const menuBtn = document.getElementById("hamburger");
+const sidebar = document.getElementById("sidebar");
+
+if (menuBtn && sidebar) {
+  menuBtn.addEventListener("click", () => {
+    sidebar.classList.toggle("active");
+  });
+}
+
 // ---------- HELPERS ----------
 function buildFileUrl(path = "") {
   if (!path) return "";
