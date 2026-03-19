@@ -5,39 +5,67 @@
   font-family: 'Poppins', sans-serif;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 body {
   min-height: 100vh;
   background: linear-gradient(135deg, #14b8a6, #0f766e);
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow-x: hidden;
+  padding: 20px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+input,
+select,
+button {
+  font: inherit;
 }
 
 /* Wrapper */
 .auth-wrapper {
   width: 100%;
   max-width: 1100px;
-  padding: 20px;
+  margin: 0 auto;
 }
 
 /* Card */
 .auth-card {
   display: flex;
+  align-items: stretch;
   background: #fff;
   border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.25);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.25);
+  animation: fadeUp 0.6s ease-out;
+  min-height: 680px;
 }
 
 /* LEFT */
 .auth-left {
   flex: 1;
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, #0d9488, #14b8a6);
   color: #fff;
   padding: 60px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .auth-left h1 {
+  font-size: 2.2rem;
   line-height: 1.2;
   margin-bottom: 16px;
 }
@@ -47,57 +75,99 @@ body {
   font-weight: 700;
 }
 
-
 .auth-left p {
   max-width: 420px;
-  margin-bottom: 180px;
+  font-size: 1rem;
+  line-height: 1.7;
+  margin-bottom: 220px;
 }
-
-
 
 .auth-left img {
   width: 100%;
   max-width: 320px;
 }
 
+.student-img {
+  position: absolute;
+  bottom: 0;
+  right: 40px;
+  width: 320px;
+  max-width: 65%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.15));
+}
+
 /* RIGHT */
 .auth-right {
   flex: 1;
-  padding: 60px 40px;
+  padding: 50px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .auth-right h2 {
   margin-bottom: 20px;
   color: #111827;
+  font-size: 1.8rem;
+  line-height: 1.3;
+}
+
+/* Logo */
+.form-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.form-logo img {
+  height: 36px;
+  width: auto;
+}
+
+.form-logo span {
+  font-size: 30px;
+  font-weight: 600;
+  color: #14b8a6;
+  line-height: 1.2;
 }
 
 /* Forms */
 .form-box {
   display: none;
+  width: 100%;
 }
 
 .form-box.active {
   display: block;
 }
 
-input, select {
+input,
+select {
   width: 100%;
-  padding: 14px;
+  padding: 14px 16px;
   margin-bottom: 14px;
   border-radius: 10px;
   border: 1px solid #e5e7eb;
   font-size: 14px;
+  background: #fff;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
   border-color: #14b8a6;
   outline: none;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.12);
 }
 
 /* Button */
 button {
   width: 100%;
-  padding: 14px;
+  padding: 14px 16px;
   background: #14b8a6;
   color: #fff;
   border: none;
@@ -105,18 +175,19 @@ button {
   font-weight: 600;
   cursor: pointer;
   transition: 0.3s;
-  box-shadow: 0 10px 25px rgba(20,184,166,0.35);
-
+  box-shadow: 0 10px 25px rgba(20, 184, 166, 0.35);
 }
 
 button:hover {
-   transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
-/* Links */
+/* Text */
 p {
   margin-top: 15px;
   font-size: 14px;
+  line-height: 1.6;
+  color: #374151;
 }
 
 a {
@@ -136,37 +207,27 @@ a:hover {
   margin-bottom: 15px;
 }
 
+.security {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
 /* ID Proof */
 .id-proof {
   display: none;
   margin-bottom: 10px;
 }
-.auth-left {
-  position: relative;
-  overflow: hidden;
+
+.id-proof label {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #374151;
 }
 
-.student-img {
-  position: absolute;
-  bottom: 0;
-  right: 80px;
-
-  width: 320px;
-  max-width: 65%;
-  height: auto;
-
-  pointer-events: none;
-  user-select: none;
-
-  filter: drop-shadow(0 20px 30px rgba(0,0,0,0.15));
-}
-
-
-
-.auth-card {
-  animation: fadeUp 0.6s ease-out;
-}
-
+/* Animation */
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -178,30 +239,212 @@ a:hover {
   }
 }
 
+/* Large laptop */
+@media (max-width: 1200px) {
+  .auth-wrapper {
+    max-width: 1000px;
+  }
 
-@media (max-width: 900px) {
-  .auth-left {
-    display: none;
+  .auth-left h1 {
+    font-size: 2rem;
+  }
+
+  .student-img {
+    right: 24px;
+    width: 290px;
+  }
+}
+
+/* Tablet / iPad */
+@media (max-width: 992px) {
+  body {
+    padding: 16px;
+    align-items: flex-start;
   }
 
   .auth-card {
-    width: 100%;
+    min-height: auto;
+  }
+
+  .auth-left {
+    padding: 44px 28px;
+  }
+
+  .auth-right {
+    padding: 40px 28px;
+  }
+
+  .auth-left h1 {
+    font-size: 1.8rem;
+  }
+
+  .auth-left p {
+    margin-bottom: 170px;
+    max-width: 100%;
+  }
+
+  .student-img {
+    right: 20px;
+    width: 240px;
+    max-width: 58%;
+  }
+
+  .form-logo span {
+    font-size: 26px;
+  }
+
+  .auth-right h2 {
+    font-size: 1.5rem;
   }
 }
-.form-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+
+/* Mobile / small tablet */
+@media (max-width: 900px) {
+  .auth-card {
+    flex-direction: column;
+    border-radius: 20px;
+  }
+
+  .auth-left {
+    display: flex;
+    min-height: 280px;
+    padding: 36px 24px 24px;
+  }
+
+  .auth-left p {
+    margin-bottom: 110px;
+  }
+
+  .student-img {
+    width: 190px;
+    right: 16px;
+    bottom: 0;
+    max-width: 50%;
+  }
+
+  .auth-right {
+    padding: 30px 24px;
+  }
 }
 
-.form-logo img {
-  height: 36px;
-  width: auto;
+/* Mobile */
+@media (max-width: 768px) {
+  body {
+    padding: 12px;
+  }
+
+  .auth-wrapper {
+    padding: 0;
+  }
+
+  .auth-card {
+    border-radius: 18px;
+  }
+
+  .auth-left {
+    min-height: 240px;
+    padding: 28px 20px 20px;
+  }
+
+  .auth-left h1 {
+    font-size: 1.5rem;
+  }
+
+  .auth-left p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 90px;
+  }
+
+  .student-img {
+    width: 160px;
+    right: 12px;
+    max-width: 45%;
+  }
+
+  .auth-right {
+    padding: 24px 20px;
+  }
+
+  .auth-right h2 {
+    font-size: 1.35rem;
+    margin-bottom: 18px;
+  }
+
+  .form-logo {
+    margin-bottom: 20px;
+  }
+
+  .form-logo img {
+    height: 32px;
+  }
+
+  .form-logo span {
+    font-size: 24px;
+  }
+
+  input,
+  select,
+  button {
+    padding: 13px 14px;
+    font-size: 14px;
+  }
+
+  .forgot {
+    text-align: left;
+    margin-bottom: 12px;
+  }
 }
 
-.form-logo span {
-  font-size: 30px;
-  font-weight: 600;
-  color: #14b8a6; /* match your green theme */
+/* Small mobile */
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+  }
+
+  .auth-card {
+    border-radius: 16px;
+  }
+
+  .auth-left {
+    min-height: 220px;
+    padding: 22px 16px 18px;
+  }
+
+  .auth-left h1 {
+    font-size: 1.25rem;
+  }
+
+  .auth-left p {
+    font-size: 13px;
+    margin-bottom: 80px;
+  }
+
+  .student-img {
+    width: 135px;
+    right: 10px;
+    max-width: 42%;
+  }
+
+  .auth-right {
+    padding: 20px 16px;
+  }
+
+  .auth-right h2 {
+    font-size: 1.2rem;
+  }
+
+  .form-logo span {
+    font-size: 22px;
+  }
+
+  .form-logo img {
+    height: 28px;
+  }
+
+  p,
+  a,
+  .security {
+    font-size: 13px;
+  }
 }
