@@ -414,20 +414,28 @@ a:hover {
 /* Small mobile */
 /* Hide banner content on small screens */
 @media (max-width: 480px) {
-  .auth-left p,
-  .student-img {
+
+  /* Completely remove banner */
+  .auth-left {
     display: none;
   }
 
-  .auth-left {
+  /* Make login full screen style */
+  .auth-card {
+    border-radius: 16px;
     min-height: auto;
-    padding: 14px 12px;
-    justify-content: center;
   }
 
-  .auth-left h1 {
-    font-size: 1rem;
-    max-width: 100%;
+  .auth-right {
+    padding: 24px 18px;
+  }
+
+  .form-logo {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .auth-right h2 {
     text-align: center;
   }
 }
