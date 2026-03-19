@@ -1,13 +1,21 @@
 (function () {
   const API_BASE = `${window.APP_CONFIG.API_BASE}/admin`;
   const ROOT_API = window.APP_CONFIG.API_BASE;
-  const BASE_URL = window.APP_CONFIG.BASE_URL;
   const ADMIN_VIDEO_API = `${ROOT_API}/admin/videos`;
   const SETTINGS_API = `${ROOT_API}/admin-settings`;
 
   const token = localStorage.getItem("sl_token") || "";
 
+  if (!token) {
+    alert("Admin not logged in");
+    window.location.href = "index.html";
+    return;
+  }
+
   // DOM elements
+  const sidebar = document.getElementById("sidebar");
+  const hamburger = document.getElementById("hamburger");
+
   const navItems = document.querySelectorAll(".nav-item");
   const sections = document.querySelectorAll(".section");
   const searchInput = document.getElementById("searchInput");
@@ -33,29 +41,96 @@
   const saveEdit = document.getElementById("saveEdit");
   const cancelEdit = document.getElementById("cancelEdit");
 
-  const lecturesSection = document.getElementById("teacher-lectures");
   const lecturesGrid = document.querySelector(".lectures-grid");
-  const lectureSearchInput = document.querySelector(".lectures-actions input");
-  const statusFilter = document.querySelector(".lectures-actions select");
-  const refreshLecturesBtn = document.querySelector(".refresh-btn");
+  const lectureSearchInput = document.getElementById("lectureSearchInput");
+  const statusFilter = document.getElementById("lectureStatusFilter");
+  const refreshLecturesBtn = document.getElementById("refreshLecturesBtn");
 
   let roleChart = null;
   let approvalChart = null;
   let userGrowthChart = null;
   let usageChart = null;
 
-  // navigation switch
+  // ===============================
+  // SIDEBAR TOGGLE
+  // ===============================
+  function initSidebarState() {
+    if (!sidebar) return;
+
+    if (window.innerWidth <= 1000) {
+      sidebar.classList.add("closed");
+      sidebar.classList.remove("open");
+    } else {
+      sidebar.classList.remove("closed");
+      sidebar.classList.remove("open");
+    }
+  }
+
+  function closeSidebarOnMobile() {
+    if (window.innerWidth <= 1000 && sidebar) {
+      sidebar.classList.remove("open");
+      sidebar.classList.add("closed");
+    }
+  }
+
+  hamburger?.addEventListener("click", () => {
+    if (!sidebar) return;
+
+    if (window.innerWidth <= 1000) {
+      const isOpen = sidebar.classList.contains("open");
+
+      if (isOpen) {
+        sidebar.classList.remove("open");
+        sidebar.classList.add("closed");
+      } else {
+        sidebar.classList.remove("closed");
+        sidebar.classList.add("open");
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      window.innerWidth <= 1000 &&
+      sidebar?.classList.contains("open") &&
+      !sidebar.contains(e.target) &&
+      !hamburger?.contains(e.target)
+    ) {
+      sidebar.classList.remove("open");
+      sidebar.classList.add("closed");
+    }
+  });
+
+  window.addEventListener("resize", initSidebarState);
+  initSidebarState();
+
+  // ===============================
+  // NAVIGATION
+  // ===============================
   navItems.forEach((btn) => {
     btn.addEventListener("click", () => {
       navItems.forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
+
       const id = btn.dataset.section;
       sections.forEach((s) => s.classList.remove("active-section"));
       document.getElementById(id)?.classList.add("active-section");
+
+      closeSidebarOnMobile();
+
+      if (id === "teacher-lectures") {
+        loadTeacherLectures();
+      }
+
+      if (id === "moderation") {
+        loadAdminAnnouncements();
+      }
     });
   });
 
-  // fetch wrapper
+  // ===============================
+  // FETCH WRAPPER
+  // ===============================
   async function authFetch(url, opts = {}) {
     opts.headers = opts.headers || {};
     opts.headers["Authorization"] = `Bearer ${token}`;
@@ -63,6 +138,7 @@
 
     try {
       const res = await fetch(url, opts);
+
       if (!res.ok) {
         let msg = await res.text();
         try {
@@ -70,6 +146,7 @@
         } catch {}
         throw new Error(msg || "Request failed");
       }
+
       if (res.status === 204) return null;
       return await res.json();
     } catch (e) {
@@ -78,7 +155,30 @@
     }
   }
 
-  // load all users
+  // ===============================
+  // HELPERS
+  // ===============================
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, "%22");
+  }
+
+  function extractVideoId(url) {
+    const reg =
+      /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url?.match(reg);
+    return match ? match[1] : "";
+  }
+
+  // ===============================
+  // USERS
+  // ===============================
   async function loadAll() {
     try {
       const users = await authFetch(`${API_BASE}/`);
@@ -91,28 +191,30 @@
     }
   }
 
-  // render all users
   function renderUsers(users) {
     const q = (searchInput?.value || "").toLowerCase();
     const role = roleFilter?.value || "";
 
     const filtered = users.filter((u) => {
       if (role && u.role !== role) return false;
+
       if (
         q &&
         !(
-          u.username.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q)
+          String(u.username || "").toLowerCase().includes(q) ||
+          String(u.email || "").toLowerCase().includes(q)
         )
       ) {
         return false;
       }
+
       return true;
     });
 
     if (!userTableBody) return;
 
     userTableBody.innerHTML = "";
+
     filtered.forEach((u) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -144,7 +246,6 @@
       );
   }
 
-  // load pending teachers only
   async function loadPending() {
     try {
       const users = await authFetch(`${API_BASE}/`);
@@ -167,7 +268,9 @@
           <td>
             ${
               t.idProof
-                ? `<button class="view-link" data-file="${escapeAttr(t.idProof)}">View ID Proof</button>`
+                ? `<button class="view-link" data-file="${escapeAttr(
+                    t.idProof
+                  )}">View ID Proof</button>`
                 : "No Document"
             }
           </td>
@@ -254,11 +357,6 @@
   }
 
   async function approveTeacher(id) {
-    if (!token) {
-      alert("Admin token missing! Please log in again.");
-      return;
-    }
-
     try {
       const res = await fetch(`${API_BASE}/approve/${id}`, {
         method: "PUT",
@@ -277,17 +375,12 @@
       } else {
         alert("Approve failed: " + data.message);
       }
-    } catch (err) {
+    } catch {
       alert("Approve failed: Server error");
     }
   }
 
   async function rejectTeacher(id) {
-    if (!token) {
-      alert("Admin token missing! Please log in again.");
-      return;
-    }
-
     try {
       const res = await fetch(`${API_BASE}/reject/${id}`, {
         method: "PUT",
@@ -330,6 +423,7 @@
 
   async function deleteUser(id) {
     if (!confirm("Delete user?")) return;
+
     try {
       await authFetch(`${API_BASE}/${id}`, { method: "DELETE" });
       alert("User deleted");
@@ -397,20 +491,9 @@
     window.location.replace("index.html");
   });
 
-  function escapeHtml(s) {
-    return String(s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-  }
-
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/"/g, "%22");
-  }
-
-  // -----------------------------
+  // ===============================
   // TEACHER LECTURES – ADMIN
-  // -----------------------------
+  // ===============================
   async function loadTeacherLectures() {
     if (!lecturesGrid) return;
     lecturesGrid.innerHTML = "⏳ Loading teacher lectures...";
@@ -444,37 +527,37 @@
         const isBlocked = v.status === "draft";
 
         return `
-        <div class="lecture-card ${isBlocked ? "blocked" : ""}">
-          <div class="video-frame">
-            <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
-            <span class="status ${isBlocked ? "blocked" : "active"}">
-              ${isBlocked ? "Blocked" : "Published"}
-            </span>
-          </div>
+          <div class="lecture-card ${isBlocked ? "blocked" : ""}">
+            <div class="video-frame">
+              <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+              <span class="status ${isBlocked ? "blocked" : "active"}">
+                ${isBlocked ? "Blocked" : "Published"}
+              </span>
+            </div>
 
-          <div class="lecture-content">
-            <h3>${v.title}</h3>
+            <div class="lecture-content">
+              <h3>${escapeHtml(v.title)}</h3>
 
-            <p class="teacher-name">
-              👨‍🏫 ${v.teacherId?.username || "Unknown Teacher"}
-              <span>${v.teacherId?.email || ""}</span>
-            </p>
+              <p class="teacher-name">
+                👨‍🏫 ${escapeHtml(v.teacherId?.username || "Unknown Teacher")}
+                <span>${escapeHtml(v.teacherId?.email || "")}</span>
+              </p>
 
-            <div class="lecture-actions">
-              <button class="btn edit" onclick="window.editLecture('${v._id}')">Edit</button>
+              <div class="lecture-actions">
+                <button class="btn edit" onclick="window.editLecture('${v._id}')">Edit</button>
 
-              <button class="btn ${isBlocked ? "unblock" : "block"}"
-                onclick="window.toggleLecture('${v._id}', ${!isBlocked})">
-                ${isBlocked ? "Unblock" : "Block"}
-              </button>
+                <button class="btn ${isBlocked ? "unblock" : "block"}"
+                  onclick="window.toggleLecture('${v._id}', ${!isBlocked})">
+                  ${isBlocked ? "Unblock" : "Block"}
+                </button>
 
-              <button class="btn delete" onclick="window.deleteLecture('${v._id}')">
-                Delete
-              </button>
+                <button class="btn delete" onclick="window.deleteLecture('${v._id}')">
+                  Delete
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      `;
+        `;
       })
       .join("");
   }
@@ -513,7 +596,7 @@
       });
 
       loadTeacherLectures();
-    } catch (err) {
+    } catch {
       alert("❌ Failed to delete lecture");
     }
   }
@@ -558,14 +641,6 @@
     alert("✏️ Edit lecture modal coming next");
   }
 
-  function extractVideoId(url) {
-    const reg =
-      /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = url?.match(reg);
-    return match ? match[1] : "";
-  }
-
-  // expose for inline onclick
   window.toggleLecture = toggleLecture;
   window.deleteLecture = deleteLecture;
   window.editLecture = editLecture;
@@ -574,21 +649,9 @@
   statusFilter?.addEventListener("change", filterLectures);
   refreshLecturesBtn?.addEventListener("click", loadTeacherLectures);
 
-  document
-    .querySelector('[data-section="teacher-lectures"]')
-    ?.addEventListener("click", () => {
-      loadTeacherLectures();
-    });
-
-  // -----------------------------
+  // ===============================
   // ANNOUNCEMENT MODERATION
-  // -----------------------------
-  document
-    .querySelector('[data-section="moderation"]')
-    ?.addEventListener("click", () => {
-      loadAdminAnnouncements();
-    });
-
+  // ===============================
   async function loadAdminAnnouncements() {
     try {
       const res = await fetch(`${ROOT_API}/announcements/admin/all`, {
@@ -599,13 +662,11 @@
 
       const announcements = await res.json();
 
-      const container = document.getElementById("moderationBody");
-      if (!container) return;
-
-      container.innerHTML = "";
+      if (!moderationBody) return;
+      moderationBody.innerHTML = "";
 
       if (!announcements.length) {
-        container.innerHTML = `
+        moderationBody.innerHTML = `
           <tr>
             <td colspan="4" style="text-align:center;">No announcements found</td>
           </tr>
@@ -614,13 +675,13 @@
       }
 
       announcements.forEach((a) => {
-        container.innerHTML += `
+        moderationBody.innerHTML += `
           <tr>
-            <td>${a.message}</td>
-            <td>${a.postedBy?.username || "Deleted User"}</td>
+            <td>${escapeHtml(a.message)}</td>
+            <td>${escapeHtml(a.postedBy?.username || "Deleted User")}</td>
             <td>Announcement</td>
             <td>
-              <button onclick="window.deleteAnnouncement('${a._id}')">
+              <button class="btn delete" onclick="window.deleteAnnouncement('${a._id}')">
                 🗑 Delete
               </button>
             </td>
@@ -647,15 +708,9 @@
 
   window.deleteAnnouncement = deleteAnnouncement;
 
-  // -----------------------------
+  // ===============================
   // DOUBTS
-  // -----------------------------
-  if (!token) {
-    alert("Admin not logged in");
-    window.location.href = "index.html";
-    return;
-  }
-
+  // ===============================
   async function loadDoubtAnalytics() {
     const res = await fetch(`${ROOT_API}/admin/doubts/analytics`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -663,9 +718,12 @@
 
     const data = await res.json();
 
-    document.getElementById("totalDoubts").innerText = data.total;
-    document.getElementById("pendingDoubts").innerText = data.pending;
-    document.getElementById("answeredDoubts").innerText = data.answered;
+    document.getElementById("totalDoubts").innerText = data.total || 0;
+    document.getElementById("pendingDoubts").innerText = data.pending || 0;
+    document.getElementById("answeredDoubts").innerText = data.answered || 0;
+    document.getElementById("avgTime").innerText = data.avgResponseTime
+      ? `${data.avgResponseTime} min`
+      : "0 min";
   }
 
   async function loadAdminDoubts() {
@@ -688,12 +746,12 @@
     doubts.forEach((d) => {
       tbody.innerHTML += `
         <tr>
-          <td>${d.student?.username || "Unknown"}</td>
-          <td>${d.question}</td>
+          <td>${escapeHtml(d.student?.username || "Unknown")}</td>
+          <td>${escapeHtml(d.question)}</td>
           <td>${d.isAnswered ? "Answered" : "Pending"}</td>
           <td>${new Date(d.createdAt).toLocaleDateString()}</td>
           <td>
-            <button onclick="window.deleteDoubt('${d._id}')">🗑</button>
+            <button class="btn delete" onclick="window.deleteDoubt('${d._id}')">🗑</button>
           </td>
         </tr>
       `;
@@ -718,9 +776,9 @@
 
   window.deleteDoubt = deleteDoubt;
 
-  // -----------------------------
+  // ===============================
   // SETTINGS
-  // -----------------------------
+  // ===============================
   const headers = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -790,14 +848,15 @@
     });
   });
 
-  // initial load
+  // ===============================
+  // INITIAL LOAD
+  // ===============================
   loadAll();
   loadPending();
   loadDoubtAnalytics();
   loadAdminDoubts();
-  document.addEventListener("DOMContentLoaded", loadSettings);
+  loadSettings();
 
-  // enable filters & refresh
   searchInput?.addEventListener("input", loadAll);
   roleFilter?.addEventListener("change", loadAll);
   refreshBtn?.addEventListener("click", () => {
