@@ -1,42 +1,31 @@
 <!doctype html>
 <html lang="en">
-
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SmartLearn — Admin Dashboard</title>
   <link rel="stylesheet" href="admin-dashboard.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-  <aside class="sidebar">
+  <aside id="sidebar" class="sidebar closed">
     <div>
       <div class="brand">
         <span class="b-white">SmartLearn</span>
       </div>
+
       <nav class="nav">
-        <button class="nav-item active" data-section="users">
-          👥User Management
-        </button>
-        <button class="nav-item" data-section="approvals">
-          ✅Teacher Approvals
-        </button>
-        <button class="nav-item" data-section="analytics">
-          📊Platform Analytics
-        </button>
-        <button class="nav-item" data-section="Doubt">
-          📈Doubt Insights or Query Analytics
-        </button>
-        <button class="nav-item" data-section="moderation">
-          🛡️Content Moderation
-        </button>
-        <button class="nav-item" data-section="teacher-lectures">
-          📺Lecture Management
-        </button>
-        <button class="nav-item" data-section="settings">⚙️Admin Settings</button>
+        <button class="nav-item active" data-section="users">👥 User Management</button>
+        <button class="nav-item" data-section="approvals">✅ Teacher Approvals</button>
+        <button class="nav-item" data-section="analytics">📊 Platform Analytics</button>
+        <button class="nav-item" data-section="doubt">📈 Doubt Insights</button>
+        <button class="nav-item" data-section="moderation">🛡️ Content Moderation</button>
+        <button class="nav-item" data-section="teacher-lectures">📺 Lecture Management</button>
+        <button class="nav-item" data-section="settings">⚙️ Admin Settings</button>
       </nav>
     </div>
+
     <div class="sidebar-footer">
       <button id="logoutBtn" class="logout">🚪 Logout</button>
     </div>
@@ -45,9 +34,13 @@
   <main class="main">
     <header class="topbar">
       <div class="left">
-        <div class="welcome">Welcome, Admin 👑</div>
-        <div class="sub">You have full control over SmartLearn</div>
+        <button id="hamburger" class="hamburger">☰</button>
+        <div>
+          <div class="welcome">Welcome, Admin 👑</div>
+          <div class="sub">You have full control over SmartLearn</div>
+        </div>
       </div>
+
       <div class="right-controls">
         <input id="searchInput" placeholder="Search username or email..." />
         <select id="roleFilter">
@@ -84,18 +77,20 @@
 
         <div class="card">
           <h3>All Users</h3>
-          <table class="user-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="userTableBody"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -103,22 +98,24 @@
       <section id="approvals" class="section">
         <div class="card">
           <h3>Pending Teacher Approvals</h3>
-          <table class="user-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>ID Proof</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="approvalTableBody"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>ID Proof</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="approvalTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
-      <!-- Teacher Lectures Section -->
+
+      <!-- LECTURES -->
       <section id="teacher-lectures" class="section">
-        <!-- Header -->
         <div class="lectures-header">
           <div>
             <h2>📚 Teacher Lectures</h2>
@@ -126,64 +123,17 @@
           </div>
 
           <div class="lectures-actions">
-            <input type="text" placeholder="Search teacher or video..." />
-            <select>
-              <option>All</option>
-              <option>Active</option>
-              <option>Blocked</option>
+            <input id="lectureSearchInput" type="text" placeholder="Search teacher or video..." />
+            <select id="lectureStatusFilter">
+              <option value="All">All</option>
+              <option value="Active">Active</option>
+              <option value="Blocked">Blocked</option>
             </select>
-            <button class="refresh-btn">Refresh</button>
+            <button id="refreshLecturesBtn" class="refresh-btn">Refresh</button>
           </div>
         </div>
 
-        <!-- Video Grid -->
-        <div class="lectures-grid">
-          <!-- Video Card -->
-          <div class="lecture-card">
-            <div class="video-frame">
-              <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" allowfullscreen></iframe>
-              <span class="status active">Active</span>
-            </div>
-
-            <div class="lecture-content">
-              <h3>Introduction to Networking</h3>
-
-              <p class="teacher-name">
-                👨‍🏫 Rahul Sharma
-                <span>rahul@gmail.com</span>
-              </p>
-
-              <div class="lecture-actions">
-                <button class="btn edit">Edit</button>
-                <button class="btn block">Block</button>
-                <button class="btn delete">Delete</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Blocked Card -->
-          <div class="lecture-card blocked">
-            <div class="video-frame">
-              <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>
-              <span class="status blocked">Blocked</span>
-            </div>
-
-            <div class="lecture-content">
-              <h3>Cybersecurity Basics</h3>
-
-              <p class="teacher-name">
-                👨‍🏫 Neha Verma
-                <span>neha@gmail.com</span>
-              </p>
-
-              <div class="lecture-actions">
-                <button class="btn edit">Edit</button>
-                <button class="btn unblock">Unblock</button>
-                <button class="btn delete">Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <div class="lectures-grid"></div>
       </section>
 
       <!-- ANALYTICS -->
@@ -207,11 +157,11 @@
           </div>
         </div>
       </section>
-      <!-- ================= DOUBT ANALYTICS ================= -->
-      <section id="Doubt" class="section">
+
+      <!-- DOUBT -->
+      <section id="doubt" class="section">
         <h2>📊 Doubt Analytics</h2>
 
-        <!-- KPI Cards -->
         <div class="analytics-cards">
           <div class="card">
             <h3>Total Doubts</h3>
@@ -234,45 +184,44 @@
           </div>
         </div>
 
-        <!-- Leaderboards -->
-        <div class="analytics-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Question</th>
-                <th>Status</th>
-                <th>Date</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="doubtAnalyticsBody">
-              <!-- doubts will load here -->
-            </tbody>
-          </table>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Question</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="doubtAnalyticsBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
-      <!-- =================================================== -->
 
       <!-- MODERATION -->
       <section id="moderation" class="section">
         <div class="card">
           <h3>Content Moderation</h3>
-          <table class="user-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Author</th>
-                <th>Type</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="moderationBody"></tbody>
-          </table>
+          <div class="table-wrap">
+            <table class="user-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Author</th>
+                  <th>Type</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="moderationBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
-      <!-- SETTINGS -->
       <!-- SETTINGS -->
       <section id="settings" class="section">
         <div class="section-head">
@@ -283,8 +232,6 @@
         </div>
 
         <div class="grid settings-grid">
-
-          <!-- Platform -->
           <div class="card">
             <h3>Platform</h3>
 
@@ -309,7 +256,6 @@
             </div>
           </div>
 
-          <!-- Security -->
           <div class="card">
             <h3>Security</h3>
 
@@ -329,7 +275,6 @@
             </div>
           </div>
 
-          <!-- Uploads -->
           <div class="card">
             <h3>Uploads</h3>
 
@@ -356,7 +301,6 @@
             </div>
           </div>
 
-          <!-- Danger Zone -->
           <div class="card danger">
             <h3>Danger Zone</h3>
             <p class="muted">Be careful — these actions can’t be undone.</p>
@@ -366,40 +310,45 @@
               <button class="btn btn-danger" id="disablePlatform">Disable platform</button>
             </div>
           </div>
-
         </div>
       </section>
+    </section>
+  </main>
 
+  <!-- EDIT MODAL -->
+  <div id="editModal" class="modal">
+    <div class="box">
+      <h3>Edit User</h3>
+      <input id="editId" type="hidden" />
 
-      <!-- Edit Modal -->
-      <div id="editModal" class="modal">
-        <div class="box">
-          <h3>Edit User</h3>
-          <input id="editId" type="hidden" />
-          <label>Username</label>
-          <input id="editUsername" />
-          <label>Email</label>
-          <input id="editEmail" />
-          <label>Role</label>
-          <select id="editRole">
-            <option value="student">Student</option>
-            <option value="teacher">Teacher</option>
-            <option value="admin">Admin</option>
-          </select>
-          <label>Status</label>
-          <select id="editStatus">
-            <option value="pending">pending</option>
-            <option value="approved">approved</option>
-            <option value="rejected">rejected</option>
-          </select>
-          <div class="flex-row" style="justify-content: flex-end">
-            <button id="saveEdit" class="btn">Save</button>
-            <button id="cancelEdit" class="btn ghost">Cancel</button>
-          </div>
-        </div>
+      <label>Username</label>
+      <input id="editUsername" />
+
+      <label>Email</label>
+      <input id="editEmail" />
+
+      <label>Role</label>
+      <select id="editRole">
+        <option value="student">Student</option>
+        <option value="teacher">Teacher</option>
+        <option value="admin">Admin</option>
+      </select>
+
+      <label>Status</label>
+      <select id="editStatus">
+        <option value="pending">pending</option>
+        <option value="approved">approved</option>
+        <option value="rejected">rejected</option>
+      </select>
+
+      <div class="flex-row modal-actions">
+        <button id="saveEdit" class="btn">Save</button>
+        <button id="cancelEdit" class="btn ghost">Cancel</button>
       </div>
-      <script src="config.js"></script>
-      <script src="admin-dashboard.js"></script>
-</body>
+    </div>
+  </div>
 
+  <script src="config.js"></script>
+  <script src="admin-dashboard.js"></script>
+</body>
 </html>
