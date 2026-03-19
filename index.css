@@ -423,10 +423,21 @@ a:hover {
   }
 }
 
-/* Small mobile */
-/* Hide banner content on small screens */
-@media (max-width: 480px) {
+.mobile-heading {
+  display: none;
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #111827;
+}
 
+.mobile-heading span {
+  color: #14b8a6;
+}
+
+/* Small mobile */
+@media (max-width: 480px) {
   .auth-left {
     display: none;
   }
@@ -439,11 +450,11 @@ a:hover {
     padding: 24px 18px;
   }
 
-  .auth-right h2 {
-    text-align: center;
-  }
-
   .form-logo {
     justify-content: center;
+  }
+
+  .auth-right h2 {
+    text-align: center;
   }
 }
