@@ -1,8 +1,8 @@
 // ===============================
 // APP CONFIG
 // ===============================
-const API_BASE = window.APP_CONFIG.API_BASE;   // example: https://smartlearn-backend.onrender.com/api
-const BASE_URL = window.APP_CONFIG.BASE_URL;   // example: https://smartlearn-backend.onrender.com
+const API_BASE = window.APP_CONFIG.API_BASE;
+const BASE_URL = window.APP_CONFIG.BASE_URL;
 
 const token = localStorage.getItem("sl_token");
 const ANNOUNCE_API = `${API_BASE}/announcements`;
@@ -17,8 +17,17 @@ function buildFileUrl(path = "") {
   return `${BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+function safeText(value = "") {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 // ===============================
-// AUTH + HEADER + NAV
+// AUTH + HEADER + NAV + SIDEBAR
 // ===============================
 document.addEventListener("DOMContentLoaded", () => {
   if (!token) {
@@ -46,6 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (avatar) {
         topAvatar.style.backgroundImage = `url('${avatar}')`;
         topAvatar.style.backgroundSize = "cover";
+        topAvatar.style.backgroundPosition = "center";
         topAvatar.textContent = "";
       } else {
         topAvatar.textContent = username ? username[0].toUpperCase() : "T";
@@ -59,21 +69,75 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const navButtons = document.querySelectorAll(".nav-item");
   const sections = document.querySelectorAll(".section");
+  const sidebar = document.getElementById("sidebar");
+  const hamburger = document.getElementById("hamburger");
 
   function showSection(id) {
     navButtons.forEach((btn) =>
       btn.classList.toggle("active", btn.dataset.section === id)
     );
+
     sections.forEach((sec) => {
       sec.style.display = sec.id === id ? "" : "none";
     });
   }
 
+  function closeSidebarOnMobile() {
+    if (window.innerWidth <= 1000) {
+      sidebar?.classList.remove("open");
+      sidebar?.classList.add("closed");
+    }
+  }
+
+  function initSidebarState() {
+    if (!sidebar) return;
+
+    if (window.innerWidth <= 1000) {
+      sidebar.classList.add("closed");
+      sidebar.classList.remove("open");
+    } else {
+      sidebar.classList.remove("closed");
+      sidebar.classList.remove("open");
+    }
+  }
+
   navButtons.forEach((btn) =>
-    btn.addEventListener("click", () => showSection(btn.dataset.section))
+    btn.addEventListener("click", () => {
+      showSection(btn.dataset.section);
+      closeSidebarOnMobile();
+    })
   );
 
+  hamburger?.addEventListener("click", () => {
+    if (!sidebar || window.innerWidth > 1000) return;
+
+    const isOpen = sidebar.classList.contains("open");
+
+    if (isOpen) {
+      sidebar.classList.remove("open");
+      sidebar.classList.add("closed");
+    } else {
+      sidebar.classList.remove("closed");
+      sidebar.classList.add("open");
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      window.innerWidth <= 1000 &&
+      sidebar?.classList.contains("open") &&
+      !sidebar.contains(e.target) &&
+      !hamburger?.contains(e.target)
+    ) {
+      sidebar.classList.remove("open");
+      sidebar.classList.add("closed");
+    }
+  });
+
+  window.addEventListener("resize", initSidebarState);
+
   showSection("home");
+  initSidebarState();
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     localStorage.clear();
@@ -99,10 +163,7 @@ askAiBtn?.addEventListener("click", () => {
 closeAskAi?.addEventListener("click", () => {
   askAiPanel.classList.remove("open");
   askAiPanel.setAttribute("aria-hidden", "true");
-
-  aiChatBox.innerHTML =
-    `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
-
+  aiChatBox.innerHTML = `<div class="msg ai">🤖 Hi! Ask me anything to get started.</div>`;
   aiInput.value = "";
 });
 
@@ -113,7 +174,7 @@ function addMessage(sender, text) {
   if (sender === "user") {
     div.textContent = `You: ${text}`;
   } else {
-    const formattedText = text
+    const formattedText = safeText(text)
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\n/g, "<br>");
 
@@ -145,8 +206,8 @@ aiSend?.addEventListener("click", async () => {
 
   aiInput.value = "";
   addMessage("user", text);
-
   addMessage("ai", "⏳ Thinking...");
+
   const reply = await callSmartLearn(text);
 
   aiChatBox.lastChild?.remove();
@@ -370,16 +431,15 @@ function renderMyVideos(videos) {
     container.innerHTML += `
       <div class="video-card">
         <iframe
-          src="https://www.youtube.com/embed/${videoId}"
+          src="https://www.youtube.com/embed/${safeText(videoId)}"
           allowfullscreen>
         </iframe>
 
-        <h4><b>Title:</b> ${video.title}</h4>
-        <p><b>Subject:</b> ${video.subject || "-"}</p>
-        <p><b>Description:</b> ${video.description || ""}</p>
+        <h4><b>Title:</b> ${safeText(video.title)}</h4>
+        <p><b>Subject:</b> ${safeText(video.subject || "-")}</p>
+        <p><b>Description:</b> ${safeText(video.description || "")}</p>
 
-        <button class="delete-btn"
-          onclick="deleteVideo('${video._id}')">
+        <button class="delete-btn" onclick="deleteVideo('${video._id}')">
           🗑 Delete
         </button>
       </div>
@@ -440,9 +500,8 @@ document.getElementById("subjectFilter")?.addEventListener("change", () => {
 });
 
 function applyFilters() {
-  const searchText = document
-    .getElementById("videoSearchInput")
-    ?.value.toLowerCase() || "";
+  const searchText =
+    document.getElementById("videoSearchInput")?.value.toLowerCase() || "";
 
   const subject = document.getElementById("subjectFilter")?.value || "";
 
@@ -478,19 +537,6 @@ function populateSubjectFilter(videos) {
 // ===================================================
 // DOUBTS
 // ===================================================
-async function replyDoubt(doubtId, answer) {
-  await fetch(`${API_BASE}/doubts/${doubtId}/reply`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + localStorage.getItem("sl_token"),
-    },
-    body: JSON.stringify({ answer }),
-  });
-
-  loadAllDoubts?.();
-}
-
 async function loadTeacherDoubts() {
   const res = await fetch(`${API_BASE}/doubts/teacher/pending`, {
     headers: {
@@ -503,10 +549,10 @@ async function loadTeacherDoubts() {
   const container = document.getElementById("teacherDoubts");
   if (!container) return;
 
-  container.innerHTML = "";
+  container.innerHTML = `<h3>🎓 Student Doubts</h3>`;
 
   if (!Array.isArray(doubts) || doubts.length === 0) {
-    container.innerHTML = "<p>No pending doubts 🎉</p>";
+    container.innerHTML += "<p>No pending doubts 🎉</p>";
     return;
   }
 
@@ -515,15 +561,13 @@ async function loadTeacherDoubts() {
       <div class="doubt-card">
         <div class="doubt-header">
           <div>
-            <strong>👨‍🎓 ${d.student.username}</strong>
-            <span class="time">
-              ${new Date(d.createdAt).toLocaleString()}
-            </span>
+            <strong>👨‍🎓 ${safeText(d.student.username)}</strong>
+            <span class="time">${new Date(d.createdAt).toLocaleString()}</span>
           </div>
           <span class="badge pending">Pending</span>
         </div>
 
-        <p class="doubt-question">${d.question}</p>
+        <p class="doubt-question">${safeText(d.question)}</p>
 
         <textarea
           id="reply-${d._id}"
@@ -568,8 +612,7 @@ const postBtn = document.getElementById("postAnnouncementBtn");
 const myAnnouncementsBox = document.getElementById("myAnnouncements");
 
 announcementFile?.addEventListener("change", () => {
-  fileName.textContent =
-    announcementFile.files[0]?.name || "No file selected";
+  fileName.textContent = announcementFile.files[0]?.name || "No file selected";
 });
 
 postBtn?.addEventListener("click", async () => {
@@ -642,7 +685,7 @@ async function loadMyAnnouncements() {
 
       div.innerHTML = `
         <div class="announcement-top">
-          <p>${a.message}</p>
+          <p>${safeText(a.message)}</p>
           <button class="delete-btn" data-id="${a._id}">🗑</button>
         </div>
 
@@ -714,7 +757,7 @@ uploadBtn?.addEventListener("click", async () => {
   formData.append("title", title);
   formData.append("subject", subject);
   formData.append("contentType", contentType);
-  formData.append("file", file);
+  if (file) formData.append("file", file);
 
   const res = await fetch(`${API_BASE}/content/upload`, {
     method: "POST",
@@ -762,22 +805,20 @@ async function loadMyContent() {
         <div class="content-card" id="card-${item._id}">
           <div class="view-mode">
             <div class="content-info">
-              <h3>${item.title}</h3>
-              <span>${item.subject || "No Subject"} • ${item.contentType}</span>
+              <h3>${safeText(item.title)}</h3>
+              <span>${safeText(item.subject || "No Subject")} • ${safeText(item.contentType)}</span>
             </div>
 
             <div class="content-actions">
               <button class="edit-btn" onclick="enableEdit('${item._id}')">✏️</button>
               <button class="delete-btn" onclick="deleteContent('${item._id}')">🗑️</button>
-              <a href="${buildFileUrl(item.fileUrl)}" target="_blank">
-                View / Download
-              </a>
+              <a href="${buildFileUrl(item.fileUrl)}" target="_blank">View / Download</a>
             </div>
           </div>
 
           <div class="edit-mode" style="display:none;">
-            <input type="text" id="title-${item._id}" value="${item.title}" />
-            <input type="text" id="subject-${item._id}" value="${item.subject || ""}" />
+            <input type="text" id="title-${item._id}" value="${safeText(item.title)}" />
+            <input type="text" id="subject-${item._id}" value="${safeText(item.subject || "")}" />
 
             <select id="type-${item._id}">
               <option value="Note" ${item.contentType === "Note" ? "selected" : ""}>Note</option>
@@ -787,8 +828,8 @@ async function loadMyContent() {
             <input type="file" id="file-${item._id}" />
 
             <div class="content-actions">
-              <button onclick="updateContent('${item._id}')">✅ Update</button>
-              <button onclick="cancelEdit('${item._id}')">❌ Cancel</button>
+              <button class="btn" onclick="updateContent('${item._id}')">✅ Update</button>
+              <button class="btn delete-btn" onclick="cancelEdit('${item._id}')">❌ Cancel</button>
             </div>
           </div>
         </div>
@@ -892,7 +933,7 @@ async function loadTeacherDashboard() {
     document.getElementById("totalAssignments").innerText =
       data.stats.totalAssignments;
 
-    const doubtsContainer = document.querySelector("#home .card");
+    const doubtsContainer = document.getElementById("latestDoubtsCard");
     if (doubtsContainer) {
       doubtsContainer.innerHTML = `<h3>❓ Latest Student Pending Doubts</h3>`;
 
@@ -900,8 +941,8 @@ async function loadTeacherDashboard() {
         doubtsContainer.innerHTML += `
           <div class="doubt-card">
             <div>
-              <h4>${doubt.student.username}</h4>
-              <p class="preview">${doubt.question}</p>
+              <h4>${safeText(doubt.student.username)}</h4>
+              <p class="preview">${safeText(doubt.question)}</p>
             </div>
           </div>
         `;
