@@ -7,18 +7,9 @@
 
   const token = localStorage.getItem("sl_token") || "";
 
-  if (!token) {
-    alert("Admin not logged in");
-    window.location.href = "index.html";
-    return;
-  }
-
-  // DOM
+  // DOM elements
   const navItems = document.querySelectorAll(".nav-item");
   const sections = document.querySelectorAll(".section");
-  const sidebar = document.getElementById("sidebar");
-  const hamburger = document.getElementById("hamburger");
-
   const searchInput = document.getElementById("searchInput");
   const roleFilter = document.getElementById("roleFilter");
   const refreshBtn = document.getElementById("refreshBtn");
@@ -32,6 +23,7 @@
   const statTeachers = document.getElementById("statTeachers");
   const statPending = document.getElementById("statPending");
 
+  // modal
   const editModal = document.getElementById("editModal");
   const editId = document.getElementById("editId");
   const editUsername = document.getElementById("editUsername");
@@ -41,98 +33,29 @@
   const saveEdit = document.getElementById("saveEdit");
   const cancelEdit = document.getElementById("cancelEdit");
 
+  const lecturesSection = document.getElementById("teacher-lectures");
   const lecturesGrid = document.querySelector(".lectures-grid");
-  const lectureSearchInput = document.getElementById("lectureSearchInput");
-  const statusFilter = document.getElementById("lectureStatusFilter");
-  const refreshLecturesBtn = document.getElementById("refreshLecturesBtn");
+  const lectureSearchInput = document.querySelector(".lectures-actions input");
+  const statusFilter = document.querySelector(".lectures-actions select");
+  const refreshLecturesBtn = document.querySelector(".refresh-btn");
 
   let roleChart = null;
   let approvalChart = null;
   let userGrowthChart = null;
   let usageChart = null;
 
-  // -------------------
-  // Helpers
-  // -------------------
-  function escapeHtml(s) {
-    return String(s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  }
-
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/"/g, "%22");
-  }
-
-  function showSection(id) {
-    navItems.forEach((b) => b.classList.toggle("active", b.dataset.section === id));
-    sections.forEach((s) => s.classList.toggle("active-section", s.id === id));
-  }
-
-  function closeSidebarOnMobile() {
-    if (window.innerWidth <= 1000) {
-      sidebar?.classList.remove("open");
-      sidebar?.classList.add("closed");
-    }
-  }
-
-  function initSidebarState() {
-    if (!sidebar) return;
-
-    if (window.innerWidth <= 1000) {
-      sidebar.classList.add("closed");
-      sidebar.classList.remove("open");
-    } else {
-      sidebar.classList.remove("closed");
-      sidebar.classList.remove("open");
-    }
-  }
-
+  // navigation switch
   navItems.forEach((btn) => {
     btn.addEventListener("click", () => {
-      showSection(btn.dataset.section);
-      closeSidebarOnMobile();
-
-      if (btn.dataset.section === "teacher-lectures") loadTeacherLectures();
-      if (btn.dataset.section === "moderation") loadAdminAnnouncements();
+      navItems.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      const id = btn.dataset.section;
+      sections.forEach((s) => s.classList.remove("active-section"));
+      document.getElementById(id)?.classList.add("active-section");
     });
   });
 
-  hamburger?.addEventListener("click", () => {
-    if (!sidebar || window.innerWidth > 1000) return;
-
-    const isOpen = sidebar.classList.contains("open");
-    if (isOpen) {
-      sidebar.classList.remove("open");
-      sidebar.classList.add("closed");
-    } else {
-      sidebar.classList.remove("closed");
-      sidebar.classList.add("open");
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    if (
-      window.innerWidth <= 1000 &&
-      sidebar?.classList.contains("open") &&
-      !sidebar.contains(e.target) &&
-      !hamburger?.contains(e.target)
-    ) {
-      sidebar.classList.remove("open");
-      sidebar.classList.add("closed");
-    }
-  });
-
-  window.addEventListener("resize", initSidebarState);
-  initSidebarState();
-  showSection("users");
-
-  // -------------------
-  // Fetch wrapper
-  // -------------------
+  // fetch wrapper
   async function authFetch(url, opts = {}) {
     opts.headers = opts.headers || {};
     opts.headers["Authorization"] = `Bearer ${token}`;
@@ -155,9 +78,7 @@
     }
   }
 
-  // -------------------
-  // Users
-  // -------------------
+  // load all users
   async function loadAll() {
     try {
       const users = await authFetch(`${API_BASE}/`);
@@ -170,18 +91,18 @@
     }
   }
 
+  // render all users
   function renderUsers(users) {
     const q = (searchInput?.value || "").toLowerCase();
     const role = roleFilter?.value || "";
 
     const filtered = users.filter((u) => {
       if (role && u.role !== role) return false;
-
       if (
         q &&
         !(
-          String(u.username || "").toLowerCase().includes(q) ||
-          String(u.email || "").toLowerCase().includes(q)
+          u.username.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q)
         )
       ) {
         return false;
@@ -199,7 +120,8 @@
         <td>${escapeHtml(u.email)}</td>
         <td>${escapeHtml(u.role)}</td>
         <td>${escapeHtml(
-          u.status || (u.approved ? "approved" : u.rejected ? "rejected" : "pending")
+          u.status ||
+            (u.approved ? "approved" : u.rejected ? "rejected" : "pending")
         )}</td>
         <td>
           <button class="btn" data-id="${u._id}" data-action="edit">Edit</button>
@@ -209,15 +131,20 @@
       userTableBody.appendChild(tr);
     });
 
-    userTableBody.querySelectorAll("[data-action='edit']").forEach((btn) =>
-      btn.addEventListener("click", () => openEdit(btn.dataset.id))
-    );
+    userTableBody
+      .querySelectorAll("[data-action='edit']")
+      .forEach((btn) =>
+        btn.addEventListener("click", () => openEdit(btn.dataset.id))
+      );
 
-    userTableBody.querySelectorAll("[data-action='delete']").forEach((btn) =>
-      btn.addEventListener("click", () => deleteUser(btn.dataset.id))
-    );
+    userTableBody
+      .querySelectorAll("[data-action='delete']")
+      .forEach((btn) =>
+        btn.addEventListener("click", () => deleteUser(btn.dataset.id))
+      );
   }
 
+  // load pending teachers only
   async function loadPending() {
     try {
       const users = await authFetch(`${API_BASE}/`);
@@ -233,6 +160,7 @@
 
       pending.forEach((t) => {
         const tr = document.createElement("tr");
+
         tr.innerHTML = `
           <td>${escapeHtml(t.username)}</td>
           <td>${escapeHtml(t.email)}</td>
@@ -248,6 +176,7 @@
             <button class="reject" data-id="${t._id}">Reject</button>
           </td>
         `;
+
         approvalTableBody.appendChild(tr);
       });
 
@@ -269,8 +198,12 @@
 
   function renderStats(users) {
     if (statTotal) statTotal.textContent = users.length;
-    if (statStudents) statStudents.textContent = users.filter((u) => u.role === "student").length;
-    if (statTeachers) statTeachers.textContent = users.filter((u) => u.role === "teacher").length;
+    if (statStudents) {
+      statStudents.textContent = users.filter((u) => u.role === "student").length;
+    }
+    if (statTeachers) {
+      statTeachers.textContent = users.filter((u) => u.role === "teacher").length;
+    }
     if (statPending) {
       statPending.textContent = users.filter(
         (u) =>
@@ -321,6 +254,11 @@
   }
 
   async function approveTeacher(id) {
+    if (!token) {
+      alert("Admin token missing! Please log in again.");
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/approve/${id}`, {
         method: "PUT",
@@ -339,12 +277,17 @@
       } else {
         alert("Approve failed: " + data.message);
       }
-    } catch {
+    } catch (err) {
       alert("Approve failed: Server error");
     }
   }
 
   async function rejectTeacher(id) {
+    if (!token) {
+      alert("Admin token missing! Please log in again.");
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/reject/${id}`, {
         method: "PUT",
@@ -407,7 +350,8 @@
       editEmail.value = u.email;
       editRole.value = u.role;
       editStatus.value =
-        u.status || (u.approved ? "approved" : u.rejected ? "rejected" : "pending");
+        u.status ||
+        (u.approved ? "approved" : u.rejected ? "rejected" : "pending");
 
       editModal?.classList.add("active");
     } catch (e) {
@@ -443,7 +387,9 @@
     }
   });
 
-  cancelEdit?.addEventListener("click", () => editModal?.classList.remove("active"));
+  cancelEdit?.addEventListener("click", () =>
+    editModal?.classList.remove("active")
+  );
 
   document.getElementById("logoutBtn")?.addEventListener("click", () => {
     localStorage.removeItem("sl_token");
@@ -451,16 +397,29 @@
     window.location.replace("index.html");
   });
 
-  // -------------------
-  // Teacher Lectures
-  // -------------------
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, "%22");
+  }
+
+  // -----------------------------
+  // TEACHER LECTURES – ADMIN
+  // -----------------------------
   async function loadTeacherLectures() {
     if (!lecturesGrid) return;
     lecturesGrid.innerHTML = "⏳ Loading teacher lectures...";
 
     try {
       const res = await fetch(ADMIN_VIDEO_API, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       const videos = await res.json();
@@ -485,43 +444,45 @@
         const isBlocked = v.status === "draft";
 
         return `
-          <div class="lecture-card ${isBlocked ? "blocked" : ""}">
-            <div class="video-frame">
-              <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
-              <span class="status ${isBlocked ? "blocked" : "active"}">
-                ${isBlocked ? "Blocked" : "Published"}
-              </span>
-            </div>
+        <div class="lecture-card ${isBlocked ? "blocked" : ""}">
+          <div class="video-frame">
+            <iframe src="https://www.youtube.com/embed/${videoId}" allowfullscreen></iframe>
+            <span class="status ${isBlocked ? "blocked" : "active"}">
+              ${isBlocked ? "Blocked" : "Published"}
+            </span>
+          </div>
 
-            <div class="lecture-content">
-              <h3>${escapeHtml(v.title)}</h3>
+          <div class="lecture-content">
+            <h3>${v.title}</h3>
 
-              <p class="teacher-name">
-                👨‍🏫 ${escapeHtml(v.teacherId?.username || "Unknown Teacher")}
-                <span>${escapeHtml(v.teacherId?.email || "")}</span>
-              </p>
+            <p class="teacher-name">
+              👨‍🏫 ${v.teacherId?.username || "Unknown Teacher"}
+              <span>${v.teacherId?.email || ""}</span>
+            </p>
 
-              <div class="lecture-actions">
-                <button class="btn edit" onclick="window.editLecture('${v._id}')">Edit</button>
+            <div class="lecture-actions">
+              <button class="btn edit" onclick="window.editLecture('${v._id}')">Edit</button>
 
-                <button class="btn ${isBlocked ? "unblock" : "block"}"
-                  onclick="window.toggleLecture('${v._id}', ${!isBlocked})">
-                  ${isBlocked ? "Unblock" : "Block"}
-                </button>
+              <button class="btn ${isBlocked ? "unblock" : "block"}"
+                onclick="window.toggleLecture('${v._id}', ${!isBlocked})">
+                ${isBlocked ? "Unblock" : "Block"}
+              </button>
 
-                <button class="btn delete" onclick="window.deleteLecture('${v._id}')">
-                  Delete
-                </button>
-              </div>
+              <button class="btn delete" onclick="window.deleteLecture('${v._id}')">
+                Delete
+              </button>
             </div>
           </div>
-        `;
+        </div>
+      `;
       })
       .join("");
   }
 
   async function toggleLecture(id, block) {
-    if (!confirm(`Are you sure you want to ${block ? "block" : "unblock"} this lecture?`)) return;
+    if (!confirm(`Are you sure you want to ${block ? "block" : "unblock"} this lecture?`)) {
+      return;
+    }
 
     try {
       await fetch(`${ADMIN_VIDEO_API}/${id}/status`, {
@@ -546,11 +507,13 @@
     try {
       await fetch(`${ADMIN_VIDEO_API}/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       loadTeacherLectures();
-    } catch {
+    } catch (err) {
       alert("❌ Failed to delete lecture");
     }
   }
@@ -602,6 +565,7 @@
     return match ? match[1] : "";
   }
 
+  // expose for inline onclick
   window.toggleLecture = toggleLecture;
   window.deleteLecture = deleteLecture;
   window.editLecture = editLecture;
@@ -610,22 +574,38 @@
   statusFilter?.addEventListener("change", filterLectures);
   refreshLecturesBtn?.addEventListener("click", loadTeacherLectures);
 
-  // -------------------
-  // Moderation
-  // -------------------
+  document
+    .querySelector('[data-section="teacher-lectures"]')
+    ?.addEventListener("click", () => {
+      loadTeacherLectures();
+    });
+
+  // -----------------------------
+  // ANNOUNCEMENT MODERATION
+  // -----------------------------
+  document
+    .querySelector('[data-section="moderation"]')
+    ?.addEventListener("click", () => {
+      loadAdminAnnouncements();
+    });
+
   async function loadAdminAnnouncements() {
     try {
       const res = await fetch(`${ROOT_API}/announcements/admin/all`, {
-        headers: { Authorization: "Bearer " + token },
+        headers: {
+          Authorization: "Bearer " + token,
+        },
       });
 
       const announcements = await res.json();
 
-      if (!moderationBody) return;
-      moderationBody.innerHTML = "";
+      const container = document.getElementById("moderationBody");
+      if (!container) return;
+
+      container.innerHTML = "";
 
       if (!announcements.length) {
-        moderationBody.innerHTML = `
+        container.innerHTML = `
           <tr>
             <td colspan="4" style="text-align:center;">No announcements found</td>
           </tr>
@@ -634,13 +614,15 @@
       }
 
       announcements.forEach((a) => {
-        moderationBody.innerHTML += `
+        container.innerHTML += `
           <tr>
-            <td>${escapeHtml(a.message)}</td>
-            <td>${escapeHtml(a.postedBy?.username || "Deleted User")}</td>
+            <td>${a.message}</td>
+            <td>${a.postedBy?.username || "Deleted User"}</td>
             <td>Announcement</td>
             <td>
-              <button class="btn delete" onclick="window.deleteAnnouncement('${a._id}')">🗑 Delete</button>
+              <button onclick="window.deleteAnnouncement('${a._id}')">
+                🗑 Delete
+              </button>
             </td>
           </tr>
         `;
@@ -655,7 +637,9 @@
 
     await fetch(`${ROOT_API}/announcements/${id}`, {
       method: "DELETE",
-      headers: { Authorization: "Bearer " + token },
+      headers: {
+        Authorization: "Bearer " + token,
+      },
     });
 
     loadAdminAnnouncements();
@@ -663,9 +647,15 @@
 
   window.deleteAnnouncement = deleteAnnouncement;
 
-  // -------------------
-  // Doubts
-  // -------------------
+  // -----------------------------
+  // DOUBTS
+  // -----------------------------
+  if (!token) {
+    alert("Admin not logged in");
+    window.location.href = "index.html";
+    return;
+  }
+
   async function loadDoubtAnalytics() {
     const res = await fetch(`${ROOT_API}/admin/doubts/analytics`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -673,11 +663,9 @@
 
     const data = await res.json();
 
-    document.getElementById("totalDoubts").innerText = data.total || 0;
-    document.getElementById("pendingDoubts").innerText = data.pending || 0;
-    document.getElementById("answeredDoubts").innerText = data.answered || 0;
-    document.getElementById("avgTime").innerText =
-      data.avgResponseTime ? `${data.avgResponseTime} min` : "0 min";
+    document.getElementById("totalDoubts").innerText = data.total;
+    document.getElementById("pendingDoubts").innerText = data.pending;
+    document.getElementById("answeredDoubts").innerText = data.answered;
   }
 
   async function loadAdminDoubts() {
@@ -700,12 +688,12 @@
     doubts.forEach((d) => {
       tbody.innerHTML += `
         <tr>
-          <td>${escapeHtml(d.student?.username || "Unknown")}</td>
-          <td>${escapeHtml(d.question)}</td>
+          <td>${d.student?.username || "Unknown"}</td>
+          <td>${d.question}</td>
           <td>${d.isAnswered ? "Answered" : "Pending"}</td>
           <td>${new Date(d.createdAt).toLocaleDateString()}</td>
           <td>
-            <button class="btn delete" onclick="window.deleteDoubt('${d._id}')">🗑</button>
+            <button onclick="window.deleteDoubt('${d._id}')">🗑</button>
           </td>
         </tr>
       `;
@@ -730,9 +718,9 @@
 
   window.deleteDoubt = deleteDoubt;
 
-  // -------------------
-  // Settings
-  // -------------------
+  // -----------------------------
+  // SETTINGS
+  // -----------------------------
   const headers = () => ({
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
@@ -742,7 +730,8 @@
     const res = await fetch(SETTINGS_API, { headers: headers() });
     const s = await res.json();
 
-    document.getElementById("platformName").value = s.platformName || "SmartLearn";
+    document.getElementById("platformName").value =
+      s.platformName || "SmartLearn";
     document.getElementById("supportEmail").value =
       s.supportEmail || "smartlearn526@gmail.com";
 
@@ -782,11 +771,14 @@
 
   document.getElementById("saveSecurity")?.addEventListener("click", () => {
     saveAllSettings({
-      requireEmailVerification: document.getElementById("emailVerification").checked,
+      requireEmailVerification:
+        document.getElementById("emailVerification").checked,
       sessionTimeoutMinutes: Number(
         document.getElementById("sessionTimeout").value || 60
       ),
-      maxLoginAttempts: Number(document.getElementById("maxAttempts").value || 5),
+      maxLoginAttempts: Number(
+        document.getElementById("maxAttempts").value || 5
+      ),
     });
   });
 
@@ -798,13 +790,14 @@
     });
   });
 
-  // initial
+  // initial load
   loadAll();
   loadPending();
   loadDoubtAnalytics();
   loadAdminDoubts();
-  loadSettings();
+  document.addEventListener("DOMContentLoaded", loadSettings);
 
+  // enable filters & refresh
   searchInput?.addEventListener("input", loadAll);
   roleFilter?.addEventListener("change", loadAll);
   refreshBtn?.addEventListener("click", () => {
