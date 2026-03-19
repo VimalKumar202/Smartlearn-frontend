@@ -2553,3 +2553,198 @@ progress::-webkit-progress-value{
   text-decoration: none;
   font-size: 12px;
 }
+/* =========================
+   SAFE RESPONSIVE FIXES
+   Add only at the end
+========================= */
+
+html, body {
+  overflow-x: hidden;
+}
+
+img, iframe, video {
+  max-width: 100%;
+  height: auto;
+}
+
+.main {
+  min-width: 0;
+}
+
+/* Large tablets / small laptops */
+@media (max-width: 1024px) {
+  .search {
+    width: 240px;
+  }
+
+  .report-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ask-ai-panel {
+    width: calc(100vw - 24px);
+    right: 12px;
+    bottom: 80px;
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .left,
+  .right {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .search {
+    width: 100%;
+  }
+
+  .login-card,
+  .modal-box {
+    width: min(100%, 92vw);
+  }
+
+  .report-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .video-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-actions,
+  .output-actions,
+  .card-actions,
+  .quiz-actions,
+  .quiz-player-actions,
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* Phones */
+@media (max-width: 480px) {
+  body {
+    padding: 10px;
+    gap: 12px;
+  }
+
+  .topbar {
+    gap: 10px;
+  }
+
+  .welcome {
+    font-size: 14px;
+  }
+
+  .sub {
+    font-size: 12px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ask-ai-toggle {
+    right: 12px;
+    bottom: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .ask-ai-panel {
+    width: calc(100vw - 16px);
+    height: 70vh;
+    right: 8px;
+    bottom: 70px;
+    border-radius: 12px;
+  }
+
+  .login-card,
+  .modal-box {
+    width: 92vw;
+    padding: 16px;
+  }
+
+  .report-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
+
+  .notes-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .list li,
+  .task-list li,
+  #notes .list li,
+  #planner .task-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .doubt-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .progress-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Better mobile viewport height support */
+@supports (height: 100dvh) {
+  .sidebar {
+    height: 100dvh;
+  }
+
+  .ask-ai-panel {
+    max-height: 80dvh;
+  }
+}
